@@ -11,6 +11,7 @@
   (5 minutes, one use, created by a signed-in user or `./manager.sh pair <user>` on this machine).
 - Roles: admin (everything), moderator (run servers, no deleting/wiping/creating/settings), viewer (look only).
 Files are chmod 600 and git-ignored (config/accounts.json, state/sessions.json)."""
+from __future__ import annotations
 import hashlib
 import hmac
 import json

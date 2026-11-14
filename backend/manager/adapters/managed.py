@@ -8,6 +8,7 @@ import shutil
 import signal
 import tarfile
 import time
+import uuid
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -276,23 +277,39 @@ class ManagedServer(Adapter):
         """Runs before the archive is made (e.g. dump a database into a folder that gets backed up)."""
 
     def backup(self) -> str:
+        """Serialize standalone backups with all other server operations."""
+        with self.lock("backup"):
+            return self._backup()
+
+    def _backup(self) -> str:
+        """Called by operations already holding the instance lock (wipe/install)."""
         try:
             self.pre_backup()
         except Exception as e:
             add_event(self.id, "warn", f"backup: database dump failed ({e}); files are still backed up")
         dest = self.root / "backups"
         dest.mkdir(parents=True, exist_ok=True)
-        out = dest / f"{self.slug}_{datetime.now(UK):%Y-%m-%d_%H%M%S}.tar.gz"
-        with tarfile.open(out, "w:gz") as tar:
-            skip = set(self.backup_exclude)
-            for p in self.backup_paths():
-                if p.exists():
-                    tar.add(p, arcname=p.name,
-                            filter=lambda t: None if skip & set(Path(t.name).parts[1:2]) else t)
-        os.chmod(out, 0o600)  # may contain configs with passwords
-        for old in sorted(dest.glob(f"{self.slug}_*.tar.gz"))[:-int(self.cfg.get("keep_backups", 14))]:
+        # A UUID prevents same-second collisions; partial archives are never published as backups.
+        out = dest / f"{self.slug}_{datetime.now(UK):%Y-%m-%d_%H%M%S}_{uuid.uuid4().hex}.tar.gz"
+        partial = dest / f".{out.name}.partial"
+        try:
+            with partial.open("xb") as stream:
+                os.fchmod(stream.fileno(), 0o600)  # protect secrets even during archive creation
+                with tarfile.open(fileobj=stream, mode="w:gz") as tar:
+                    skip = set(self.backup_exclude)
+                    for path in self.backup_paths():
+                        if path.exists():
+                            tar.add(path, arcname=path.name,
+                                    filter=lambda t: None if skip & set(Path(t.name).parts[1:2]) else t)
+                stream.flush()
+                os.fsync(stream.fileno())
+            partial.replace(out)
+        finally:
+            partial.unlink(missing_ok=True)
+        keep = max(1, int(self.cfg.get("keep_backups", 14)))
+        for old in sorted(dest.glob(f"{self.slug}_*.tar.gz"))[:-keep]:
             old.unlink()
-        return f"backup written: {out.name} (keeps {int(self.cfg.get('keep_backups', 14))})"
+        return f"backup written: {out.name} (keeps {keep})"
 
     # ---- status / logs / schedule ----
     def status(self) -> dict:

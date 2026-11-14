@@ -194,7 +194,16 @@ class RustServer(RustRcon, ManagedServer):
             if was_running and warn:
                 self.countdown(w["warn_s"], what="wipe")
             self._stop(maintenance=False)
-            backup = self.backup()  # always before deleting anything
+            try:
+                backup = self._backup()  # wipe already holds the instance lock
+            except Exception:
+                if was_running:
+                    try:
+                        self._start()
+                    except Exception as restart_error:
+                        from ..util import add_event
+                        add_event(self.id, "alert", f"wipe backup failed; server restart failed: {restart_error}")
+                raise
             removed = 0
             for pat in WIPE_MAP + (WIPE_BLUEPRINTS if kind == "full" else ()):
                 for f in self.identity_dir.glob(pat):
@@ -223,7 +232,16 @@ class RustServer(RustRcon, ManagedServer):
             was_running = bool(self.pid())
             if was_running:
                 self._stop(maintenance=False)
-            msg = install_oxide(self.server_dir)
+            try:
+                msg = install_oxide(self.server_dir)
+            except Exception:
+                if was_running:
+                    try:
+                        self._start()
+                    except Exception as restart_error:
+                        from ..util import add_event
+                        add_event(self.id, "alert", f"Oxide installation failed; restart failed: {restart_error}")
+                raise
             first = self.cfg.get("framework") != "oxide"
             if first:
                 self.cfg["framework"] = "oxide"  # later game updates reinstall it

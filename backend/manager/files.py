@@ -6,6 +6,7 @@ every start (those are shown read-only: change them in Settings). Every save che
 XML; balanced braces for Arma-style .cfg), refuses if the file changed since it was opened, keeps the previous text
 as a version (20 per file, in state/<id>/file_versions) and writes atomically.
 """
+from __future__ import annotations
 import hashlib
 import json
 import os
