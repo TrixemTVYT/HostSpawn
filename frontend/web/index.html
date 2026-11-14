@@ -1,0 +1,1427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#07090d">
+<title>HostSpawn</title>
+<style>
+  :root {
+    --bg: #07090d; --bg2: #0b0f16; --panel: rgba(17, 22, 31, .78); --panel2: rgba(26, 33, 45, .7);
+    --line: rgba(148, 163, 184, .12); --line2: rgba(148, 163, 184, .22);
+    --text: #e6edf6; --muted: #8b97a8; --dim: #5d6878;
+    --accent: #3ee6c4; --accent2: #7c5cff; --glow: rgba(62, 230, 196, .35);
+    --ok: #3ddc97; --warn: #f5b74f; --bad: #ff5c7a; --info: #5cb8ff;
+    --r: 14px; --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 14.5px/1.5 Inter, "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {  /* soft glow + faint grid */
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(900px 500px at 85% -10%, rgba(124, 92, 255, .16), transparent 60%),
+      radial-gradient(800px 500px at -10% 110%, rgba(62, 230, 196, .10), transparent 60%),
+      linear-gradient(rgba(148,163,184,.035) 1px, transparent 1px) 0 0 / 44px 44px,
+      linear-gradient(90deg, rgba(148,163,184,.035) 1px, transparent 1px) 0 0 / 44px 44px,
+      var(--bg);
+  }
+  a { color: var(--accent); text-decoration: none; }
+  .app { display: grid; grid-template-columns: 236px 1fr; min-height: 100vh; }
+
+  /* ---- sidebar ---- */
+  nav.side { position: sticky; top: 0; height: 100vh; padding: 22px 14px; border-right: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(11, 15, 22, .9), rgba(7, 9, 13, .9)); backdrop-filter: blur(14px);
+    display: flex; flex-direction: column; gap: 4px; }
+  .brand { display: flex; align-items: center; gap: 11px; padding: 0 8px 18px; }
+  .brand svg { width: 34px; height: 34px; border-radius: 9px; box-shadow: 0 0 18px -4px var(--glow); }
+  .brand b { font-size: 17px; letter-spacing: .3px; }
+  .brand small { display: block; color: var(--accent); font-size: 12px; font-weight: 600; letter-spacing: .4px; }
+  .navlink { display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: 10px; color: var(--muted);
+    font-weight: 500; transition: background .15s, color .15s; }
+  .navlink svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; flex: none; }
+  .navlink:hover { background: rgba(148,163,184,.07); color: var(--text); }
+  .navlink.on { background: linear-gradient(90deg, rgba(62,230,196,.14), rgba(62,230,196,.02)); color: var(--text);
+    box-shadow: inset 2px 0 0 var(--accent); }
+  .navlink .count { margin-left: auto; font: 600 11px var(--mono); color: var(--accent); background: rgba(62,230,196,.1);
+    padding: 1px 7px; border-radius: 99px; }
+  .side .foot { margin-top: auto; padding: 12px 10px 0; border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; }
+  .side .foot div { display: flex; justify-content: space-between; padding: 2px 0; }
+  .side .foot b { color: var(--muted); font: 500 12px var(--mono); }
+
+  main { padding: 28px 34px 60px; min-width: 0; max-width: 1400px; }
+  .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  .head h1 { margin: 0; font-size: 26px; font-weight: 650; letter-spacing: -.3px; }
+  .head p { margin: 4px 0 0; color: var(--muted); }
+  .crumb { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+  .crumb a { color: var(--muted); } .crumb a:hover { color: var(--accent); }
+  .mode { font: 700 11px var(--mono); letter-spacing: 1px; padding: 4px 9px; border-radius: 6px; vertical-align: middle; }
+  .mode-live { color: var(--ok); background: rgba(61,220,151,.1); box-shadow: inset 0 0 0 1px rgba(61,220,151,.3); }
+  .mode-dev { color: var(--warn); background: rgba(245,183,79,.1); box-shadow: inset 0 0 0 1px rgba(245,183,79,.3); }
+  .banner { border: 1px solid rgba(245,183,79,.3); background: rgba(245,183,79,.07); color: var(--warn); border-radius: 12px;
+    padding: 11px 15px; margin-bottom: 18px; font-size: 13.5px; }
+
+  /* ---- surfaces ---- */
+  .card { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 18px;
+    backdrop-filter: blur(16px); min-width: 0; transition: border-color .2s, transform .2s, box-shadow .2s; }
+  .card.click { cursor: pointer; }
+  .card.click:hover { border-color: var(--line2); transform: translateY(-2px); box-shadow: 0 14px 40px rgba(0,0,0,.35); }
+  .card h2, .card h3 { margin: 0; font-weight: 620; }
+  .card h2 { font-size: 16px; } .card h3 { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; font-size: 11.5px; margin-bottom: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+  .two { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+  .stack { display: grid; gap: 16px; }
+  .sub { color: var(--muted); font-size: 12.5px; }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .spacer { flex: 1; }
+
+  /* status pill */
+  .pill { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; padding: 4px 10px 4px 9px;
+    border-radius: 99px; background: rgba(148,163,184,.08); white-space: nowrap; }
+  .pill i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 10px currentColor; }
+  .s-running { color: var(--ok); } .s-starting, .s-stopping { color: var(--warn); }
+  .s-starting i, .s-stopping i { animation: pulse 1.2s infinite; }
+  .s-stopped, .s-unknown { color: var(--bad); } .s-maintenance, .s-not_installed { color: var(--muted); }
+  .s-maintenance i, .s-not_installed i { box-shadow: none; }
+  @keyframes pulse { 50% { opacity: .35; } }
+
+  .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+  .gameicon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; flex: none;
+    font: 700 13px var(--mono); color: #061013; background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .stat { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; min-width: 0; }
+  .stat .k { color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: .8px; }
+  .stat .v { font: 600 17px var(--mono); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar { height: 3px; border-radius: 3px; background: rgba(148,163,184,.12); overflow: hidden; margin-top: 7px; }
+  .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 3px; }
+  .checks { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .chk { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); opacity: .5; flex: none; }
+  .dot.ok { background: var(--ok); opacity: 1; box-shadow: 0 0 8px rgba(61,220,151,.6); }
+  .dot.bad { background: var(--bad); opacity: 1; box-shadow: 0 0 8px rgba(255,92,122,.6); }
+  .dot.warn { background: var(--warn); opacity: 1; }
+  .flags { list-style: none; margin: 0 0 12px; padding: 0; }
+  .flags li { color: var(--warn); font-size: 12.5px; padding: 3px 0 3px 18px; position: relative; }
+  .flags li::before { content: "▲"; position: absolute; left: 2px; font-size: 9px; top: 6px; }
+
+  /* buttons + inputs */
+  button, .btn { font: inherit; font-size: 13.5px; font-weight: 550; color: var(--text); background: rgba(148,163,184,.08);
+    border: 1px solid var(--line2); border-radius: 10px; padding: 8px 14px; cursor: pointer; min-height: 38px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px; transition: all .15s; }
+  button:hover { border-color: rgba(62,230,196,.5); background: rgba(62,230,196,.08); }
+  button:active { transform: translateY(1px); }
+  button.primary { color: #041311; border: 0; background: linear-gradient(135deg, var(--accent), #2bc3e6);
+    box-shadow: 0 6px 22px -6px var(--glow); }
+  button.primary:hover { filter: brightness(1.08); }
+  button.danger { color: var(--bad); border-color: rgba(255,92,122,.35); }
+  button.danger:hover { background: rgba(255,92,122,.1); border-color: var(--bad); }
+  button.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+  button.ghost:hover { color: var(--text); background: rgba(148,163,184,.08); }
+  button:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+  .actions { display: flex; flex-wrap: wrap; gap: 7px; }
+  input, select, textarea { font: inherit; font-size: 14px; color: var(--text); background: rgba(7,9,13,.7);
+    border: 1px solid var(--line2); border-radius: 10px; padding: 9px 12px; min-height: 40px; min-width: 0; outline: none;
+    transition: border-color .15s, box-shadow .15s; }
+  input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(62,230,196,.15); }
+  label.f { display: grid; gap: 6px; font-size: 12.5px; color: var(--muted); }
+  label.f span.h { color: var(--dim); font-size: 12px; }
+  .form { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  input[type=range] { padding: 0; accent-color: var(--accent); }
+  .check { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); cursor: pointer; }
+  .check input { min-height: auto; width: 16px; height: 16px; accent-color: var(--accent); }
+
+  /* logs, console, events */
+  pre.log { background: rgba(3,5,8,.75); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin: 0;
+    height: 380px; overflow: auto; font: 12px/1.55 var(--mono); color: #b9c4d2; white-space: pre-wrap; word-break: break-word; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; }
+  .tabs button { min-height: 32px; padding: 5px 12px; font-size: 12.5px; }
+  .tabs button.on { border-color: var(--accent); color: var(--accent); background: rgba(62,230,196,.08); }
+  .events { max-height: 440px; overflow: auto; }
+  .ev { display: grid; grid-template-columns: 96px 110px 1fr; gap: 10px; padding: 8px 2px; border-bottom: 1px solid var(--line);
+    font-size: 13px; align-items: baseline; }
+  .ev .t { color: var(--dim); font: 12px var(--mono); }
+  .ev .s { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .l-alert { color: var(--bad); } .l-warn { color: var(--warn); } .l-info { color: var(--text); }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 13.5px; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; font-family: var(--mono); font-size: 13px; overflow-wrap: anywhere; }
+  .empty { color: var(--muted); text-align: center; padding: 30px 10px; }
+  .empty b { display: block; color: var(--text); font-size: 16px; margin-bottom: 4px; }
+
+  /* wizard */
+  .steps { display: flex; gap: 0; margin-bottom: 22px; counter-reset: s; flex-wrap: wrap; }
+  .steps div { flex: 1; min-width: 120px; padding: 10px 12px; border-bottom: 2px solid var(--line); color: var(--dim);
+    font-size: 13px; font-weight: 550; counter-increment: s; }
+  .steps div::before { content: counter(s, decimal-leading-zero) "  "; font-family: var(--mono); }
+  .steps div.on { color: var(--text); border-color: var(--accent); }
+  .steps div.done { color: var(--muted); border-color: rgba(62,230,196,.4); }
+  .choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+  .choice { text-align: left; display: block; padding: 18px; border-radius: var(--r); background: var(--panel); min-height: 0;
+    border: 1px solid var(--line); width: 100%; font-weight: 400; }
+  .choice:hover { border-color: rgba(62,230,196,.5); background: rgba(62,230,196,.05); }
+  .choice.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 10px 40px -12px var(--glow); }
+  .choice:disabled { opacity: .45; }
+  .choice .t { font-size: 15.5px; font-weight: 620; display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .choice p { margin: 0; color: var(--muted); font-size: 13px; }
+  .tag { display: inline-block; font: 600 10.5px var(--mono); letter-spacing: .5px; padding: 2px 7px; border-radius: 5px;
+    background: rgba(148,163,184,.1); color: var(--muted); margin: 8px 6px 0 0; }
+  .tag.ok { color: var(--ok); background: rgba(61,220,151,.1); } .tag.warn { color: var(--warn); background: rgba(245,183,79,.1); }
+  .wizfoot { display: flex; justify-content: space-between; gap: 10px; margin-top: 22px; }
+
+  /* deploy screen */
+  .deploy { display: grid; grid-template-columns: 340px 1fr; gap: 18px; align-items: start; }
+  .ring { position: relative; width: 220px; height: 220px; margin: 6px auto 14px; }
+  .ring svg { transform: rotate(-90deg); width: 100%; height: 100%; }
+  .ring .pct { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+  .ring .pct b { font: 650 42px var(--mono); letter-spacing: -1px; }
+  .ring .pct span { color: var(--muted); font-size: 12px; }
+  .ring circle.fg, .ring circle.halo { transition: stroke-dashoffset .6s ease; }  /* no filters: cheap on machines without a GPU */
+  .ring.busy::after { content: ""; position: absolute; inset: -6px; border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent 0 80%, rgba(62,230,196,.25) 95%, transparent); animation: spin 2.4s linear infinite;
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .timeline { list-style: none; margin: 0; padding: 0; }
+  .timeline li { display: grid; grid-template-columns: 26px 1fr auto; gap: 12px; align-items: start; padding: 10px 4px; position: relative; }
+  .timeline li:not(:last-child)::after { content: ""; position: absolute; left: 16px; top: 34px; bottom: -6px; width: 1px; background: var(--line2); }
+  .timeline .ic { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px;
+    border: 1px solid var(--line2); color: var(--dim); background: var(--bg2); position: relative; z-index: 1; }
+  .timeline li.done .ic { background: rgba(61,220,151,.15); border-color: var(--ok); color: var(--ok); }
+  .timeline li.running .ic { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 12px var(--glow); }
+  .timeline li.running .ic::before { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid transparent;
+    border-top-color: var(--accent); animation: spin .9s linear infinite; }
+  .timeline li.waiting .ic { border-color: var(--warn); color: var(--warn); }
+  .timeline li.failed .ic { border-color: var(--bad); color: var(--bad); background: rgba(255,92,122,.12); }
+  .timeline li.skipped .ic { color: var(--muted); }
+  .timeline .nm { font-weight: 550; } .timeline li.pending .nm { color: var(--dim); }
+  .timeline .dt { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .timeline .tm { color: var(--dim); font: 12px var(--mono); }
+  .guide { border: 1px solid rgba(245,183,79,.35); background: linear-gradient(180deg, rgba(245,183,79,.08), rgba(245,183,79,.02));
+    border-radius: var(--r); padding: 18px; margin-bottom: 16px; }
+  .guide h2 { font-size: 17px; margin: 0 0 6px; }
+  .guide p { color: #c9d2de; margin: 0 0 12px; }
+  .cmd { display: flex; gap: 8px; align-items: stretch; margin-bottom: 8px; }
+  .cmd code { flex: 1; font: 13px var(--mono); background: rgba(3,5,8,.8); border: 1px solid var(--line2); border-radius: 9px;
+    padding: 10px 12px; overflow-x: auto; white-space: nowrap; color: var(--accent); }
+  .alertbox { border: 1px solid rgba(255,92,122,.4); background: rgba(255,92,122,.08); color: #ffd1da; border-radius: 12px;
+    padding: 12px 14px; margin-bottom: 14px; white-space: pre-wrap; font-size: 13.5px; }
+  .okbox { border: 1px solid rgba(61,220,151,.4); background: rgba(61,220,151,.08); border-radius: var(--r); padding: 18px; margin-bottom: 16px; }
+  .okbox h2 { margin: 0 0 6px; font-size: 18px; color: var(--ok); }
+
+  /* modal + toast */
+  .modal { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px;
+    background: rgba(3,5,8,.65); backdrop-filter: blur(6px); animation: fade .15s; }
+  .modal .box { width: min(460px, 100%); background: #0f141c; border: 1px solid var(--line2); border-radius: 16px; padding: 22px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+  .modal h2 { margin: 0 0 6px; font-size: 18px; } .modal p { color: var(--muted); margin: 0 0 14px; }
+  .modal input:not([type=checkbox]) { width: 100%; margin-bottom: 14px; }
+  @keyframes fade { from { opacity: 0; } }
+  /* ---- animation: transform/opacity only (cheap without a GPU); plays when a page opens, not on refreshes ---- */
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+  @keyframes pop { from { opacity: 0; transform: scale(.96); } }
+  @keyframes slidein { from { opacity: 0; transform: translateX(16px); } }
+  @keyframes breathe { 50% { opacity: .45; } }
+  @keyframes drift { 50% { transform: translate(-30px, 20px) scale(1.08); } }
+  @keyframes sheen { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+  #view.enter > * { animation: rise .42s cubic-bezier(.2,.75,.25,1) both; }
+  #view.enter > *:nth-child(2) { animation-delay: .04s; } #view.enter > *:nth-child(3) { animation-delay: .08s; }
+  #view.enter > *:nth-child(4) { animation-delay: .12s; } #view.enter > *:nth-child(n+5) { animation-delay: .16s; }
+  #view.enter .kpi, #view.enter .grid > .card, #view.enter .choices > .choice, #view.enter .howto > div { animation: rise .45s cubic-bezier(.2,.75,.25,1) both; }
+  #view.enter .kpi:nth-child(2), #view.enter .grid > .card:nth-child(2), #view.enter .choices > .choice:nth-child(2), #view.enter .howto > div:nth-child(2) { animation-delay: .05s; }
+  #view.enter .kpi:nth-child(3), #view.enter .grid > .card:nth-child(3), #view.enter .choices > .choice:nth-child(3), #view.enter .howto > div:nth-child(3) { animation-delay: .1s; }
+  #view.enter .kpi:nth-child(4), #view.enter .grid > .card:nth-child(4), #view.enter .choices > .choice:nth-child(4) { animation-delay: .15s; }
+  #view.enter .kpi:nth-child(5), #view.enter .grid > .card:nth-child(5), #view.enter .choices > .choice:nth-child(5) { animation-delay: .2s; }
+  #view.enter .kpi:nth-child(n+6), #view.enter .grid > .card:nth-child(n+6), #view.enter .choices > .choice:nth-child(n+6) { animation-delay: .25s; }
+  #view.enter .list tbody tr { animation: slidein .35s ease-out both; }
+  .modal .box { animation: pop .2s cubic-bezier(.2,.75,.25,1); }
+  #toast { animation: slidein .25s ease-out; }
+  .ptabs button { transition: color .15s, border-color .2s; }
+  .bar i, .gauge i { transition: width .7s cubic-bezier(.2,.75,.25,1); }
+  .s-running i { animation: breathe 2.6s ease-in-out infinite; }
+  button.primary { transition: transform .12s, filter .15s; } button.primary:hover { transform: translateY(-1px); }
+  .choice { transition: border-color .15s, background .15s, transform .18s; } .choice:hover:not(:disabled) { transform: translateY(-2px); }
+  .hero::before { content: ""; position: absolute; width: 420px; height: 420px; right: -120px; top: -160px; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle, rgba(124,92,255,.22), transparent 65%); animation: drift 14s ease-in-out infinite; }
+  .hero > * { position: relative; }
+  .bar, .gauge { position: relative; }
+  .timeline li.running .bar::after { content: ""; position: absolute; inset: 0; width: 40%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); animation: sheen 1.6s linear infinite; }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  #toast { position: fixed; right: 20px; bottom: 20px; z-index: 30; max-width: min(420px, calc(100% - 40px)); display: none;
+    background: #111821; border: 1px solid var(--line2); border-left: 3px solid var(--accent); border-radius: 10px; padding: 12px 16px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.45); }
+
+
+
+  /* ---- sign-in and first-run setup ---- */
+  .gate { position: fixed; inset: 0; z-index: 15; display: grid; place-items: center; padding: 20px; overflow: auto; background: var(--bg); }
+  .gate::before { content: ""; position: fixed; inset: 0; pointer-events: none;
+    background: radial-gradient(700px 420px at 80% 0%, rgba(124,92,255,.18), transparent 60%), radial-gradient(700px 420px at 0% 100%, rgba(62,230,196,.14), transparent 60%); }
+  .gate .panel { position: relative; width: min(520px, 100%); background: var(--panel); border: 1px solid var(--line2); border-radius: 20px;
+    padding: 30px; box-shadow: 0 30px 80px rgba(0,0,0,.4); animation: pop .3s cubic-bezier(.2,.75,.25,1); }
+  .gate .panel.wide { width: min(680px, 100%); }
+  .gate h1 { margin: 6px 0 6px; font-size: 24px; letter-spacing: -.3px; } .gate p.lead { color: var(--muted); margin: 0 0 20px; }
+  .gate .brandrow { display: flex; align-items: center; gap: 10px; color: var(--muted); font-weight: 600; }
+  .gate .brandrow svg { width: 30px; height: 30px; }
+  .gate form, .gate .fields { display: grid; gap: 14px; }
+  .gate input:not([type=checkbox]) { width: 100%; }
+  .gate .err { color: var(--bad); font-size: 13.5px; min-height: 18px; }
+  .dots { display: flex; gap: 6px; margin-bottom: 18px; } .dots i { height: 4px; flex: 1; border-radius: 4px; background: rgba(148,163,184,.18); }
+  .dots i.on { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .meter { height: 5px; border-radius: 5px; background: rgba(148,163,184,.15); overflow: hidden; } .meter i { display: block; height: 100%; transition: width .3s, background .3s; }
+  .usermenu { position: relative; }
+  .avatar { width: 38px; height: 38px; border-radius: 50%; padding: 0; font-weight: 700; color: #041311; border: 0;
+    background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+  .dropdown { position: absolute; right: 0; top: 46px; z-index: 12; min-width: 220px; background: var(--bg2); border: 1px solid var(--line2);
+    border-radius: 12px; padding: 8px; box-shadow: 0 20px 50px rgba(0,0,0,.4); animation: pop .15s ease-out; }
+  .dropdown .who { padding: 8px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+  .dropdown button { width: 100%; justify-content: flex-start; background: transparent; border: 0; }
+  /* ---- light theme (Settings → Appearance) ---- */
+  :root[data-theme="light"] {
+    --bg: #f3f5f9; --bg2: #ffffff; --panel: rgba(255,255,255,.92); --panel2: rgba(240,243,248,.95);
+    --line: rgba(15,23,42,.09); --line2: rgba(15,23,42,.16); --text: #0f172a; --muted: #55627a; --dim: #8a96aa;
+    --glow: rgba(20,184,166,.25);
+  }
+  :root[data-theme="light"] body::before { background: radial-gradient(900px 500px at 85% -10%, rgba(124,92,255,.10), transparent 60%),
+      radial-gradient(800px 500px at -10% 110%, rgba(62,230,196,.10), transparent 60%), var(--bg); }
+  :root[data-theme="light"] nav.side { background: linear-gradient(180deg, #ffffff, #f6f8fb); }
+  :root[data-theme="light"] pre.log, :root[data-theme="light"] .cmd code, :root[data-theme="light"] input,
+  :root[data-theme="light"] select { background: #fff; color: var(--text); }
+  :root[data-theme="light"] .modal .box, :root[data-theme="light"] #toast { background: #fff; }
+  :root[data-accent="violet"] { --accent: #8b7bff; --glow: rgba(139,123,255,.35); }
+  :root[data-accent="blue"] { --accent: #5cb8ff; --glow: rgba(92,184,255,.35); }
+  :root[data-accent="amber"] { --accent: #f5b74f; --glow: rgba(245,183,79,.35); }
+
+  /* ---- sidebar groups, top bar ---- */
+  .navgroup { color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: 1px; padding: 14px 12px 4px; }
+  .topbar { display: flex; align-items: center; gap: 10px; justify-content: flex-end; margin: -6px 0 18px; }
+  .iconbtn { position: relative; width: 38px; height: 38px; padding: 0; border-radius: 10px; }
+  .iconbtn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+  .iconbtn .badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; border-radius: 9px; padding: 0 5px;
+    background: var(--bad); color: #fff; font: 700 10.5px/18px var(--mono); }
+
+  /* ---- home ---- */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; }
+  .kpi .k { color: var(--muted); font-size: 12px; } .kpi .v { font: 650 26px var(--mono); margin-top: 4px; letter-spacing: -.5px; }
+  .kpi .v small { font-size: 14px; color: var(--dim); font-weight: 500; }
+  .kpi.alert .v { color: var(--bad); } .kpi.good .v { color: var(--ok); }
+  .gauge { height: 6px; border-radius: 6px; background: rgba(148,163,184,.14); overflow: hidden; margin-top: 10px; }
+  .gauge i { display: block; height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .gauge.hot i { background: linear-gradient(90deg, var(--warn), var(--bad)); }
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .chip { min-height: 32px; padding: 5px 12px; border-radius: 99px; font-size: 12.5px; }
+  .chip.on { border-color: var(--accent); color: var(--accent); background: rgba(62,230,196,.08); }
+  .seg { display: inline-flex; border: 1px solid var(--line2); border-radius: 10px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; min-height: 32px; padding: 5px 11px; background: transparent; }
+  .seg button.on { background: rgba(62,230,196,.12); color: var(--accent); }
+  .list { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .list th { text-align: left; color: var(--dim); font-weight: 550; font-size: 11.5px; text-transform: uppercase; letter-spacing: .7px; padding: 8px 10px; }
+  .list td { padding: 11px 10px; border-top: 1px solid var(--line); vertical-align: middle; }
+  .list tr.click:hover td { background: rgba(148,163,184,.05); cursor: pointer; }
+  .list td.num { font-family: var(--mono); }
+  .hero { position: relative; overflow: hidden; border-radius: 18px; padding: 34px 32px; margin-bottom: 18px; border: 1px solid var(--line2);
+    background: linear-gradient(135deg, rgba(62,230,196,.12), rgba(124,92,255,.12)), var(--panel); }
+  .hero h1 { margin: 0 0 6px; font-size: 30px; letter-spacing: -.5px; } .hero p { margin: 0 0 18px; color: var(--muted); max-width: 640px; }
+  .howto { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 18px 0 4px; }
+  .howto div { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 13.5px; }
+  .howto b { display: block; font: 650 12px var(--mono); color: var(--accent); margin-bottom: 4px; }
+  .split { display: grid; grid-template-columns: 1fr 340px; gap: 16px; align-items: start; }
+
+  /* ---- server panel tabs ---- */
+  .ptabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 16px; overflow-x: auto; }
+  .ptabs button { border: 0; border-radius: 0; background: transparent; color: var(--muted); padding: 10px 14px; min-height: 40px;
+    border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .ptabs button.on { color: var(--text); border-bottom-color: var(--accent); background: transparent; }
+  .times { display: flex; gap: 6px; flex-wrap: wrap; }
+  .times span { display: inline-flex; align-items: center; gap: 6px; font: 13px var(--mono); padding: 5px 6px 5px 11px; border-radius: 8px;
+    background: var(--panel2); border: 1px solid var(--line2); }
+  .times span button { min-height: 22px; width: 22px; padding: 0; border-radius: 6px; font-size: 13px; }
+  .switch { position: relative; width: 42px; height: 24px; flex: none; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch i { position: absolute; inset: 0; border-radius: 99px; background: rgba(148,163,184,.25); transition: .2s; cursor: pointer; }
+  .switch i::after { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; border-radius: 50%; background: #fff; transition: .2s; }
+  .switch input:checked + i { background: var(--accent); } .switch input:checked + i::after { transform: translateX(18px); }
+  .setrow { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 0; border-top: 1px solid var(--line); }
+  .setrow:first-of-type { border-top: 0; }
+  .setrow .l b { display: block; font-weight: 600; } .setrow .l span { color: var(--muted); font-size: 12.5px; }
+  .swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; padding: 0; min-height: 0; }
+  .swatch.on { border-color: var(--text); }
+  @media (max-width: 900px) { .split { grid-template-columns: 1fr; } .hero { padding: 24px 18px; } .list .hide-sm { display: none; } }
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    nav.side { position: sticky; z-index: 5; height: auto; flex-direction: row; align-items: center; overflow-x: auto; padding: 10px 12px; gap: 2px; border-right: 0; border-bottom: 1px solid var(--line); }
+    .brand { padding: 0 10px 0 2px; } .brand small { display: none; } .side .foot { display: none; }
+    .navgroup { display: none; }
+    .navlink { padding: 9px 11px; white-space: nowrap; } .navlink span.lbl { display: none; }
+    main { padding: 20px 16px 50px; }
+    .two, .deploy { grid-template-columns: 1fr; }
+    .grid { grid-template-columns: 1fr; }
+    .ev { grid-template-columns: 74px 1fr; } .ev .s { display: none; }
+    button, input, select { min-height: 44px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="side">
+    <div class="brand">
+      <svg viewBox="0 0 128 128" aria-hidden="true"><rect width="128" height="128" rx="28" fill="#10151d"/><g fill="none" stroke="#3ee6c4" stroke-width="7" stroke-linecap="round"><rect x="26" y="28" width="76" height="22" rx="6"/><rect x="26" y="58" width="76" height="22" rx="6"/><rect x="26" y="88" width="76" height="14" rx="6" opacity=".45"/></g><circle cx="40" cy="39" r="5" fill="#7c5cff"/><circle cx="40" cy="69" r="5" fill="#7c5cff"/></svg>
+      <div><b>HostSpawn</b><small id="community"></small></div>
+    </div>
+    <div class="navgroup lbl">Instances</div>
+    <a class="navlink" href="#/" data-r="servers"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><path d="M7 7h.01M7 17h.01"/></svg><span class="lbl">Overview</span><span class="count" id="nCount"></span></a>
+    <a class="navlink" href="#/new" data-r="new"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">New instance</span></a>
+    <div class="navgroup lbl">Library</div>
+    <a class="navlink" href="#/games" data-r="games"><svg viewBox="0 0 24 24"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg><span class="lbl">Supported games</span></a>
+    <a class="navlink" href="#/tools" data-r="tools"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg><span class="lbl">Tools</span></a>
+    <div class="navgroup lbl">System</div>
+    <a class="navlink" href="#/deps" data-r="deps"><svg viewBox="0 0 24 24"><path d="M21 16V8l-9-5-9 5v8l9 5 9-5z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/></svg><span class="lbl">Dependencies</span></a>
+    <a class="navlink" href="#/events" data-r="events"><svg viewBox="0 0 24 24"><path d="M12 8v4l3 2"/><circle cx="12" cy="12" r="9"/></svg><span class="lbl">Events</span></a>
+    <a class="navlink" href="#/settings" data-r="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="lbl">Settings</span></a>
+    <div class="foot" id="hostFoot"></div>
+  </nav>
+  <main>
+    <div class="topbar" id="topbar"></div>
+    <div id="view"></div>
+  </main>
+</div>
+<div id="toast" role="status"></div>
+<script>
+"use strict";
+const memPrefs = {};  // used when the window has no browser storage
+const pref = (k, d) => { try { const v = localStorage.getItem("manager." + k); if (v) return v; } catch (e) {} return memPrefs[k] || d; };
+const setPref = (k, v) => { memPrefs[k] = v; try { localStorage.setItem("manager." + k, v); } catch (e) {} };
+function applyTheme() {
+  const t = pref("theme", "dark"), sysLight = window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches;
+  document.documentElement.dataset.theme = t === "auto" ? (sysLight ? "light" : "dark") : t;
+  document.documentElement.dataset.accent = pref("accent", "teal");
+}
+applyTheme();
+// ---------- helpers (all page text goes through textContent: server data can never run as code) ----------
+const $ = (s, el = document) => el.querySelector(s);
+function h(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === "class") e.className = v; else if (k === "text") e.textContent = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const k of kids.flat()) if (k != null && k !== false) e.append(k instanceof Node ? k : document.createTextNode(String(k)));
+  return e;
+}
+const fmtUK = (t, o) => new Date(t).toLocaleString("en-GB", { timeZone: "Europe/London", ...o });
+const ukTime = iso => fmtUK(iso, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const dur = s => { if (s == null) return "–"; s = Math.max(0, Math.round(s)); const d = Math.floor(s / 86400), hh = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  return d ? `${d}d ${hh}h` : hh ? `${hh}h ${m}m` : m ? `${m}m ${s % 60}s` : `${s}s`; };
+const ago = s => s == null ? "never" : s < 90 ? Math.round(s) + "s ago" : s < 5400 ? Math.round(s / 60) + " min ago" : s < 172800 ? Math.round(s / 3600) + " h ago" : Math.round(s / 86400) + " days ago";
+const gb = b => b == null ? "–" : (b / 2 ** 30).toFixed(b > 10 * 2 ** 30 ? 0 : 1) + " GB";
+const size = b => b > 2 ** 30 ? gb(b) : b > 2 ** 20 ? (b / 2 ** 20).toFixed(1) + " MB" : Math.round(b / 1024) + " KB";
+const STATE = { running: "Running", starting: "Starting", stopping: "Stopping", stopped: "Down", maintenance: "Stopped", not_installed: "Not installed", unknown: "Unknown" };
+const WHO = { rustctl: "its rustctl.sh watchdog", systemd: "its systemd service", manager: "HostSpawn" };
+const ICON = { "Rust": "RS", "Arma Reforger": "AR", "Arma 3": "A3", "DayZ": "DZ", "Valheim": "VH", "Project Zomboid": "PZ" };
+const pill = st => h("span", { class: "pill s-" + st }, h("i"), STATE[st] || st);
+
+function toast(msg, bad) { const t = $("#toast"); t.textContent = msg; t.style.borderLeftColor = bad ? "var(--bad)" : "var(--accent)"; t.style.display = "block";
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = "none", 6000); }
+
+async function api(path, body) {
+  const opt = body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json", "X-Manager": "1" }, body: JSON.stringify(body) };
+  const r = await fetch(path, opt);
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401 && !path.startsWith("/api/login") && !path.startsWith("/api/setup")) { showGate(); throw new Error("Please sign in"); }
+  if (!r.ok && r.status !== 202) throw new Error(j.error || `HTTP ${r.status}`);
+  return j;
+}
+
+// Typed-confirmation dialog. Resolves to the typed text (or true for a plain confirm), or null if cancelled.
+function ask({ title, text, want, okLabel = "Confirm", danger = false, extra }) {
+  return new Promise(done => {
+    let input = want ? h("input", { placeholder: want, autocomplete: "off", spellcheck: "false" }) : null;
+    const ok = h("button", { class: danger ? "danger" : "primary", disabled: !!want }, okLabel);
+    const close = v => { m.remove(); done(v); };
+    if (input) input.addEventListener("input", () => ok.disabled = input.value.trim().toLowerCase() !== want.toLowerCase());
+    ok.onclick = () => close(input ? input.value : true);
+    const m = h("div", { class: "modal", onclick: e => { if (e.target === m) close(null); } },
+      h("div", { class: "box" }, h("h2", { text: title }), h("p", { text }),
+        want ? h("div", { class: "sub", style: "margin:-6px 0 6px" }, "Type ", h("b", { text: want }), " to confirm") : null,
+        input, extra || null,
+        h("div", { class: "row", style: "justify-content:flex-end" }, h("button", { class: "ghost", onclick: () => close(null) }, "Cancel"), ok)));
+    document.body.append(m);
+    m.addEventListener("keydown", e => { if (e.key === "Escape") close(null); if (e.key === "Enter" && !ok.disabled) ok.click(); });
+    (input || ok).focus();
+  });
+}
+
+// ---------- data ----------
+let data = null, catalog = null, timer = null;
+async function loadOverview() {
+  try { data = await api("/api/overview"); } catch (e) { return; }
+  const live = data.mode === "live";
+  $("#community").textContent = data.community || "";
+  document.title = (live ? "" : "[DEV] ") + "HostSpawn" + (data.community ? " · " + data.community : "");
+  $("#nCount").textContent = data.servers.length || "";
+  const hs = data.host, f = $("#hostFoot"); f.replaceChildren();
+  const line = (k, v) => f.append(h("div", null, k, h("b", { text: v })));
+  line("CPU load", hs.load[0]); line("RAM free", `${(hs.mem_avail_mb / 1024).toFixed(1)} GB`); line("Disk free", `${hs.disk_free_gb} GB`);
+  f.append(h("div", { style: "margin-top:8px" }, h("span", { class: "mode mode-" + (live ? "live" : "dev"), text: live ? "LIVE" : "DEV" })));
+}
+async function loadCatalog() { if (!catalog) catalog = await api("/api/catalog"); return catalog; }
+
+// ---------- shared pieces ----------
+function checksRow(s) {
+  const ck = s.checks || {}, row = h("div", { class: "checks" }), now = Date.now() / 1000;
+  const add = (label, cls, tip) => row.append(h("span", { class: "chk", title: tip }, h("span", { class: "dot " + cls }), label));
+  const on = v => v == null ? "" : v ? "ok" : "bad";
+  add("Process", on(ck.process), ck.process ? "Server process is running" : "Not running");
+  add("Query", on(ck.query), ck.query == null ? "No query check right now" : ck.query ? "Answers server-list queries" : "Not answering queries");
+  const r = ck.rcon;
+  add("RCON", r == null ? "" : r.ok ? "ok" : "bad", r == null ? "RCON not set up for this server" : r.ok ? "RCON answering" : "RCON: " + (r.error || "not answering"));
+  const la = ck.log_age_s;
+  add("Log " + (la == null ? "–" : ago(la)), la == null ? "" : la < 600 ? "ok" : "warn", "Last change to the console log");
+  const lb = ck.last_backup, bAge = lb ? now - lb : null;
+  add("Backup " + ago(bAge), lb == null ? (s.actions.includes("backup") ? "warn" : "") : bAge < 36 * 3600 ? "ok" : "warn",
+      lb ? "Newest backup: " + fmtUK(lb * 1000) : "No backup found");
+  return row;
+}
+function statTile(k, v, frac) { return h("div", { class: "stat" }, h("div", { class: "k", text: k }), h("div", { class: "v", text: v }),
+  frac != null ? h("div", { class: "bar" }, h("i", { style: `width:${Math.min(100, Math.max(2, frac * 100))}%` })) : null); }
+function stats(s) {
+  const st = s.status || {};
+  return h("div", { class: "stats" },
+    statTile("Players", st.players != null ? `${st.players}${st.max_players ? " / " + st.max_players : ""}` : "–", st.players != null && st.max_players ? st.players / st.max_players : null),
+    statTile("Server FPS", st.fps != null ? Math.round(st.fps) : "–"),
+    statTile("Memory", st.mem_mb ? (st.mem_mb / 1024).toFixed(1) + " GB" : "–"),
+    statTile("Uptime", st.uptime || dur(st.uptime_s)),
+    statTile("Query", s.health ? `${s.health.ping_ms} ms` : "–"),
+    statTile("Restarts", st.restarts != null ? st.restarts : "–"));
+}
+async function act(s, action, arg = "") {
+  const want = (action + " " + arg).trim();
+  let confirm = "";
+  if (s.confirm.includes(action)) {
+    const live = s.supervised_by === "rustctl" ? " Players get an in-game countdown first." : "";
+    const title = action === "oxide" ? `${s.framework === "oxide" ? "Update" : "Install"} Oxide on ${s.name}?` : `${want[0].toUpperCase() + want.slice(1)} ${s.name}?`;
+    const text = action === "oxide" ? "The server stops, Oxide (uMod) is installed from its official release, and it starts again. Players are disconnected for about a minute."
+      : "This affects players on the server." + live;
+    confirm = await ask({ title, text, want, okLabel: action === "oxide" ? "Install Oxide" : want, danger: action !== "oxide" });
+    if (confirm == null) return;
+  }
+  try { const r = await api("/api/action", { server: s.id, action, arg, confirm }); toast(r.message || "Done"); }
+  catch (e) { toast(e.message, true); }
+  setTimeout(refresh, 2500);
+}
+function actionButtons(s) {
+  const b = h("div", { class: "actions" });
+  const label = { start: "Start", restart: "Restart", stop: "Stop", update: "Update", backup: "Back up now" };
+  for (const a of ["start", "restart", "stop", "update", "backup"]) if (s.actions.includes(a))
+    b.append(h("button", { class: a === "stop" ? "danger" : a === "start" ? "primary" : "", onclick: e => { e.stopPropagation(); act(s, a); } }, label[a]));
+  if (s.actions.includes("oxide"))
+    b.append(h("button", { onclick: e => { e.stopPropagation(); act(s, "oxide"); } }, s.framework === "oxide" ? "Update Oxide" : "Install Oxide"));
+  if (s.actions.includes("wipe")) for (const k of ["map", "full"])
+    b.append(h("button", { class: "danger", onclick: e => { e.stopPropagation(); act(s, "wipe", k); } }, k === "map" ? "Map wipe" : "Full wipe"));
+  if (!s.controllable) b.querySelectorAll("button").forEach(x => { x.disabled = true; x.title = "Off in the development copy"; });
+  b.querySelectorAll("button").forEach(x => { const act = { Start: "start", Restart: "restart", Stop: "stop", Update: "update", "Back up now": "backup" }[x.textContent] || "admin";
+    if (!can(act)) { x.disabled = true; x.title = `Your role (${me.role}) can't do this`; } });
+  return b;
+}
+
+// ---------- Steam login box (password typed into SteamCMD by Manager, never stored) ----------
+const loginBoxes = {};  // kept between screen refreshes so a half-typed password isn't wiped
+function steamLoginBox(target, user, onOk) {
+  if (loginBoxes[target]) return loginBoxes[target];
+  const msg = h("div", { class: "sub", style: "margin:8px 0" }, "Log in once; SteamCMD remembers it for updates.");
+  const pw = h("input", { type: "password", autocomplete: "new-password", spellcheck: "false", placeholder: "Steam password", style: "flex:1" });
+  const code = h("input", { autocomplete: "one-time-code", inputmode: "text", maxlength: 10, placeholder: "Steam Guard code", style: "flex:1;text-transform:uppercase" });
+  const go = h("button", { class: "primary" }, "Log in"), send = h("button", { class: "primary" }, "Send");
+  const rowPw = h("div", { class: "row", style: "flex-wrap:nowrap", hidden: true }, pw, go);
+  const rowCode = h("div", { class: "row", style: "flex-wrap:nowrap", hidden: true }, code, send);
+  const startBtn = h("button", { class: "primary" }, "Log in to Steam");
+  let poll = null, done = false;
+  const show = st => {
+    msg.textContent = st.message || ""; msg.style.color = st.state === "failed" ? "var(--bad)" : st.state === "ok" ? "var(--ok)" : "";
+    rowPw.hidden = st.state !== "need_password"; rowCode.hidden = st.state !== "need_code";
+    startBtn.hidden = !["none", "failed"].includes(st.state); startBtn.textContent = st.state === "failed" ? "Try again" : "Log in to Steam";
+    if (st.state === "need_password") pw.focus(); if (st.state === "need_code") code.focus();
+    if (st.state === "ok" && !done) { done = true; clearInterval(poll); setTimeout(() => { delete loginBoxes[target]; onOk && onOk(); }, 1200); }
+    if (st.state === "failed") clearInterval(poll);
+  };
+  const watch = () => { clearInterval(poll); poll = setInterval(async () => { try { show(await api("/api/steam/login?target=" + encodeURIComponent(target))); } catch (e) {} }, 1000); };
+  startBtn.onclick = async () => { try { show(await api("/api/steam/login", { target, action: "start" })); watch(); } catch (e) { toast(e.message, true); } };
+  const submit = async (kind, input) => { const value = input.value; input.value = "";  // clear the field straight away
+    if (!value) return; try { show(await api("/api/steam/login", { target, action: kind, value })); } catch (e) { toast(e.message, true); } };
+  go.onclick = () => submit("password", pw); send.onclick = () => submit("code", code);
+  pw.addEventListener("keydown", e => { if (e.key === "Enter") go.click(); }); code.addEventListener("keydown", e => { if (e.key === "Enter") send.click(); });
+  const box = h("div", { style: "border:1px solid var(--line2);border-radius:12px;padding:14px;margin:10px 0;background:rgba(3,5,8,.5)" },
+    h("div", { class: "row", style: "justify-content:space-between" }, h("span", null, "Steam account: ", h("b", { style: "font-family:var(--mono)", text: user })),
+      h("span", { class: "sub", text: "🔒 never saved" })), msg, startBtn, rowPw, rowCode);
+  loginBoxes[target] = box;
+  return box;
+}
+
+// ---------- who is signed in, and what their role allows (the server checks too) ----------
+let me = null;
+const MOD_ACTIONS = ["start", "stop", "restart", "update", "backup", "send"];
+const can = action => !me || me.role === "admin" || (me.role === "moderator" && MOD_ACTIONS.includes(action));
+const isAdmin = () => !me || me.role === "admin";
+
+const LOGO = '<svg viewBox="0 0 128 128"><rect width="128" height="128" rx="28" fill="#10151d"/><g fill="none" stroke="#3ee6c4" stroke-width="7" stroke-linecap="round"><rect x="26" y="28" width="76" height="22" rx="6"/><rect x="26" y="58" width="76" height="22" rx="6"/><rect x="26" y="88" width="76" height="14" rx="6" opacity=".45"/></g><circle cx="40" cy="39" r="5" fill="#7c5cff"/><circle cx="40" cy="69" r="5" fill="#7c5cff"/></svg>';
+function gateShell(wide) {
+  let g = $("#gate"); if (g) g.remove();
+  g = h("div", { class: "gate", id: "gate" }); const panel = h("div", { class: "panel" + (wide ? " wide" : "") });
+  const brand = h("div", { class: "brandrow" }); brand.innerHTML = LOGO; brand.append("HostSpawn");
+  panel.append(brand); g.append(panel); document.body.append(g); return panel;
+}
+function strength(pw) {
+  let sc = 0; if (pw.length >= 10) sc++; if (pw.length >= 14) sc++; if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) sc++; if (/\d/.test(pw)) sc++; if (/[^A-Za-z0-9]/.test(pw)) sc++;
+  return Math.min(4, sc);
+}
+function pwField(placeholder, autocomplete) {
+  const inp = h("input", { type: "password", placeholder, autocomplete, spellcheck: "false" });
+  const bar = h("i"), label = h("span", { class: "sub" });
+  const paint = () => { const sc = strength(inp.value); bar.style.width = (sc * 25) + "%";
+    bar.style.background = ["var(--bad)", "var(--bad)", "var(--warn)", "var(--ok)", "var(--ok)"][sc];
+    label.textContent = inp.value ? ["Too weak", "Weak", "OK", "Strong", "Very strong"][sc] + (inp.value.length < 10 ? " · at least 10 characters" : "") : "At least 10 characters. A few random words work well."; };
+  inp.addEventListener("input", paint); paint();
+  return { inp, box: h("div", { style: "display:grid;gap:6px" }, inp, h("div", { class: "meter" }, bar), label) };
+}
+async function showGate() {
+  let st = { setup_needed: false }; try { st = await (await fetch("/api/setup/status")).json(); } catch (e) {}
+  return st.setup_needed ? setupWizard(0) : signIn();
+}
+function signIn() {
+  const panel = gateShell();
+  // Remembered on this device: the last username and the "keep me signed in" choice (never the password).
+  const user = h("input", { placeholder: "Username", autocomplete: "username", autocapitalize: "off", spellcheck: "false", value: pref("lastUser", "") });
+  const pw = h("input", { type: "password", placeholder: "Password", autocomplete: "current-password" });
+  const rem = h("input", { type: "checkbox", checked: pref("remember", "1") === "1" }), err = h("div", { class: "err" }), go = h("button", { class: "primary", type: "submit" }, "Sign in");
+  panel.append(h("h1", { text: "Sign in" }), h("p", { class: "lead", text: "Use the account you made for this HostSpawn." }),
+    h("form", { onsubmit: async e => { e.preventDefault(); err.textContent = ""; go.disabled = true;
+      try { me = await api("/api/login", { username: user.value.trim(), password: pw.value, remember: rem.checked }); pw.value = "";
+        setPref("lastUser", user.value.trim()); setPref("remember", rem.checked ? "1" : "0"); $("#gate").remove(); route(); }
+      catch (x) { err.textContent = x.message; pw.value = ""; pw.focus(); } go.disabled = false; } },
+      user, pw, h("label", { class: "check" }, rem, "Keep me signed in on this device (30 days)"), err, go));
+  (user.value ? pw : user).focus();
+}
+const setupState = {};
+function setupWizard(step) {
+  const steps = ["Welcome", "Your account", "Community", "Backups", "This machine", "Terms", "Done"];
+  const panel = gateShell(true);
+  panel.append(h("div", { class: "dots", style: "margin-top:16px" }, steps.map((_, i) => h("i", { class: i <= step ? "on" : "" }))),
+    h("div", { class: "sub", style: "margin-bottom:4px", text: `Step ${step + 1} of ${steps.length} · ${steps[step]}` }));
+  const err = h("div", { class: "err" });
+  const nav = (onNext, label = "Continue", back = step > 1) => h("div", { class: "row", style: "justify-content:space-between;margin-top:20px" },
+    back ? h("button", { class: "ghost", onclick: () => setupWizard(step - 1) }, "← Back") : h("span"),
+    h("button", { class: "primary", onclick: async e => { err.textContent = ""; e.currentTarget.disabled = true; try { await onNext(); } catch (x) { err.textContent = x.message; } e.currentTarget && (e.currentTarget.disabled = false); } }, label));
+  if (step === 0) {
+    panel.append(h("h1", { text: "Welcome to HostSpawn" }),
+      h("p", { class: "lead", text: "Let's set up this machine in a few short steps: your account, your community name, backups, what this machine needs, and the terms. It takes about two minutes." }),
+      h("div", { class: "howto" }, h("div", null, h("b", null, "SAFE"), "Passwords are never stored, only a protected fingerprint."),
+        h("div", null, h("b", null, "PRIVATE"), "HostSpawn runs on your own machine. Nothing is sent anywhere."),
+        h("div", null, h("b", null, "YOURS"), "You'll be the owner and can invite others later.")),
+      nav(async () => setupWizard(1), "Get started", false));
+  } else if (step === 1) {
+    const user = h("input", { placeholder: "Username (e.g. owner)", autocomplete: "username", autocapitalize: "off", spellcheck: "false", value: setupState.user || "" });
+    const p1 = pwField("Password", "new-password"), p2 = h("input", { type: "password", placeholder: "Type it again", autocomplete: "new-password" });
+    panel.append(h("h1", { text: "Create your owner account" }), h("p", { class: "lead", text: "This account controls everything. Keep the password somewhere safe: it can't be recovered from HostSpawn." }),
+      h("div", { class: "fields" }, user, p1.box, p2), err,
+      nav(async () => {
+        if (p1.inp.value !== p2.value) throw new Error("The two passwords don't match.");
+        me = await api("/api/setup", { username: user.value.trim(), password: p1.inp.value });
+        setPref("lastUser", user.value.trim()); setPref("remember", "1");
+        p1.inp.value = p2.value = ""; setupState.user = user.value.trim(); setupWizard(2);
+      }, "Create account", false));
+    user.focus();
+  } else if (step === 2) {
+    const name = h("input", { placeholder: "e.g. Riverside Gaming", maxlength: 60, value: setupState.community || "" });
+    panel.append(h("h1", { text: "Your community name" }), h("p", { class: "lead", text: "Used for server names in the server browser (for example \"Riverside Gaming Rust\"). You can change it any time in Settings." }),
+      name, err, nav(async () => { await api("/api/settings", { community: name.value.trim() || "My Community" }); setupState.community = name.value.trim(); setupWizard(3); }));
+    name.focus();
+  } else if (step === 3) {
+    const on = h("input", { type: "checkbox", checked: setupState.backups !== false }), time = h("input", { type: "time", value: setupState.time || "04:30" });
+    panel.append(h("h1", { text: "Backups" }), h("p", { class: "lead", text: "HostSpawn backs every server up once a day and warns you if a backup is missing. We recommend keeping this on." }),
+      h("div", { class: "setrow" }, h("div", { class: "l" }, h("b", { text: "Daily backups" }), h("span", { text: "Recommended" })), h("label", { class: "switch" }, on, h("i"))),
+      h("div", { class: "setrow" }, h("div", { class: "l" }, h("b", { text: "Backup time" }), h("span", { text: "UK time. Pick a quiet hour." })), time),
+      err, nav(async () => { setupState.backups = on.checked; setupState.time = time.value;
+        await api("/api/settings", { backups: { enabled: on.checked, time: time.value } }); setupWizard(4); }));
+  } else if (step === 4) {
+    const list = h("div", null, h("div", { class: "sub", text: "Checking…" }));
+    panel.append(h("h1", { text: "What this machine needs" }), h("p", { class: "lead", text: "Some server types need extra software. You can install it now or later from the Dependencies page." }), list, err,
+      nav(async () => setupWizard(5)));
+    api("/api/deps").then(d => list.replaceChildren(...d.items.filter(i => i.state !== "other_os").map(i => h("div", { class: "setrow" },
+      h("div", { class: "l" }, h("b", { text: i.name }), h("span", { text: (i.needed_by || []).join(", ") })),
+      h("span", { class: "pill " + (i.state === "installed" ? "s-running" : "s-stopped") }, h("i"), i.state === "installed" ? "Installed" : "Missing"))))).catch(() => list.replaceChildren(h("div", { class: "sub", text: "Couldn't check right now." })));
+  } else if (step === 5) {
+    const box = h("pre", { class: "log", style: "height:240px", text: "Loading…" }), tick = h("input", { type: "checkbox" });
+    panel.append(h("h1", { text: "Terms of use" }), h("p", { class: "lead", text: "Please read these before using HostSpawn. Each new server also shows the terms of its game and server type." }), box,
+      h("label", { class: "check", style: "margin-top:12px;color:var(--text)" }, tick, "I have read and accept the terms"), err,
+      nav(async () => { if (!tick.checked) throw new Error("Please tick the box to accept the terms.");
+        const t = await api("/api/terms"); await api("/api/settings", { terms_accepted: t.version }); setupWizard(6); }, "Accept and continue"));
+    api("/api/terms").then(t => box.textContent = t.text).catch(() => box.textContent = "Couldn't load the terms.");
+  } else {
+    panel.append(h("h1", { text: "You're all set" }), h("p", { class: "lead", text: `Signed in as ${me ? me.user : "owner"}. HostSpawn now watches your servers, backs them up daily and alerts you to problems.` }),
+      h("div", { class: "row", style: "margin-top:8px" }, h("button", { class: "primary", onclick: () => { $("#gate").remove(); wiz.step = 0; go("#/new"); } }, "Create your first instance"),
+        h("button", { class: "ghost", onclick: () => { $("#gate").remove(); go("#/"); } }, "Go to the dashboard")));
+  }
+}
+function userMenu() {
+  if (!me || !me.user) return null;
+  const wrap = h("div", { class: "usermenu" });
+  const btn = h("button", { class: "avatar", title: me.user, text: me.user[0].toUpperCase() });
+  btn.onclick = e => { e.stopPropagation(); const open = wrap.querySelector(".dropdown"); if (open) return open.remove();
+    const dd = h("div", { class: "dropdown" }, h("div", { class: "who" }, h("b", { text: me.user }), h("div", { class: "sub", text: me.role[0].toUpperCase() + me.role.slice(1) })),
+      h("button", { onclick: changePassword }, "Change password"),
+      h("button", { onclick: async () => { try { await api("/api/logout", {}); } catch (e) {} me = null; signIn(); } }, "Sign out"));
+    wrap.append(dd); setTimeout(() => document.addEventListener("click", () => dd.remove(), { once: true }));
+  };
+  wrap.append(btn); return wrap;
+}
+async function changePassword() {
+  const old = h("input", { type: "password", placeholder: "Current password", autocomplete: "current-password", style: "margin-bottom:10px" });
+  const n = pwField("New password", "new-password");
+  const ok = await ask({ title: "Change password", text: "Other devices will be signed out.", okLabel: "Change password", extra: h("div", { style: "display:grid;gap:10px;margin-bottom:14px" }, old, n.box) });
+  if (!ok) return;
+  try { const r = await api("/api/me/password", { old: old.value, new: n.inp.value }); toast(r.message); } catch (e) { toast(e.message, true); }
+  old.value = n.inp.value = "";
+}
+
+// ---------- pages ----------
+const routes = { deps: pageDeps, settings: pageSettings, tools: pageTools, servers: pageServers, server: pageServer, new: pageNew, job: pageJob, games: pageGames, events: pageEvents };
+// Navigation that doesn't depend on the address bar (works in the desktop app window too).
+let current = location.hash || "#/";
+function go(path) {
+  current = path;
+  // Only real web pages get an address-bar entry (back button). Snapshot/app windows just switch screens.
+  if (/^https?:$/.test(location.protocol) && location.hash !== path) { try { history.pushState(null, "", path); } catch (e) {} }
+  route();
+}
+document.addEventListener("click", e => {
+  const a = e.target.closest && e.target.closest('a[href^="#/"]');
+  if (a) { e.preventDefault(); go(a.getAttribute("href")); }
+});
+window.addEventListener("popstate", () => { current = location.hash || "#/"; route(); });
+function route() {
+  const vv = $("#view");
+  if (vv) { vv.classList.remove("enter"); void vv.offsetWidth; vv.classList.add("enter"); clearTimeout(route.t);
+    route.t = setTimeout(() => vv.classList.remove("enter"), 1100); }
+  homeView.counted = false;
+  const [, name = "servers", arg] = (current || "#/").slice(1).split("/");
+  clearInterval(timer);
+  document.querySelectorAll(".navlink").forEach(a => a.classList.toggle("on", a.dataset.r === (name === "server" || name === "job" ? (name === "job" ? "new" : "servers") : name || "servers")));
+  (routes[name] || pageServers)(decodeURIComponent(arg || ""));
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", () => { current = location.hash || "#/"; route(); });
+const view = () => $("#view");
+let refresh = () => {};
+function header(title, sub, right, crumb) {
+  return h("div", { class: "head" }, h("div", null, crumb || null, h("h1", { text: title }), sub ? h("p", { text: sub }) : null), right || null);
+}
+function devBanner() { return data && data.mode !== "live" ? h("div", { class: "banner" }, "Development copy: it can see every server but only controls the test servers it created itself.") : null; }
+
+// Top bar: alerts bell + theme switch
+function renderTopbar() {
+  const bar = $("#topbar"); if (!bar || !data) return;
+  const day = Date.now() / 1000 - 86400;
+  const alerts = (data.events || []).filter(e => e.level === "alert" && e.t > day).length;
+  const bell = h("button", { class: "iconbtn", title: "Alerts in the last 24 hours", onclick: () => go("#/events") });
+  bell.innerHTML = '<svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>';
+  if (alerts) bell.append(h("span", { class: "badge", text: alerts > 99 ? "99+" : alerts }));
+  const light = document.documentElement.dataset.theme === "light";
+  const theme = h("button", { class: "iconbtn", title: light ? "Dark theme" : "Light theme", onclick: () => { setPref("theme", light ? "dark" : "light"); applyTheme(); renderTopbar(); } });
+  theme.innerHTML = light ? '<svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>'
+    : '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+  bar.replaceChildren(isAdmin() ? h("button", { class: "primary", onclick: () => go("#/new") }, "+ New instance") : "", bell, theme, userMenu() || "");
+}
+
+// Home: welcome when empty, dashboard when there are servers
+const homeView = { filter: "all", layout: pref("layout", "grid"), q: "" };
+async function pageServers() {
+  refresh = async () => {
+    await loadOverview(); if (!data) return; renderTopbar();
+    const v = view(); v.replaceChildren();
+    const servers = data.servers, jobs = data.jobs.filter(j => j.status !== "done");
+    if (!servers.length && !jobs.length) return v.append(...welcome());
+    // summary tiles
+    const st = x => (x.status || {}).state, h_ = data.host;
+    const online = servers.filter(x => st(x) === "running").length;
+    const players = servers.reduce((n, x) => n + ((x.status || {}).players || 0), 0);
+    const slots = servers.reduce((n, x) => n + ((x.status || {}).max_players || 0), 0);
+    const day = Date.now() / 1000 - 86400, alerts = (data.events || []).filter(e => e.level === "alert" && e.t > day).length;
+    const memUsed = 1 - h_.mem_avail_mb / h_.mem_total_mb, diskUsed = 1 - h_.disk_free_gb / h_.disk_total_gb;
+    const kpi = (k, val, extra, cls) => h("div", { class: "kpi " + (cls || "") }, h("div", { class: "k", text: k }), h("div", { class: "v" }, val, extra ? h("small", { text: " " + extra }) : null));
+    const gaugeKpi = (k, frac, label) => h("div", { class: "kpi" }, h("div", { class: "k", text: k }), h("div", { class: "v", style: "font-size:20px" }, label),
+      h("div", { class: "gauge" + (frac > .85 ? " hot" : "") }, h("i", { style: `width:${Math.max(2, Math.min(100, frac * 100))}%` })));
+    v.append(header("Overview", `${data.community ? data.community + " · " : ""}${servers.length} instance${servers.length === 1 ? "" : "s"}`), devBanner() || "",
+      h("div", { class: "kpis" },
+        kpi("Instances online", String(online), `/ ${servers.length}`, online === servers.length && servers.length ? "good" : ""),
+        kpi("Players now", String(players), slots ? `/ ${slots}` : ""),
+        kpi("Alerts today", String(alerts), "", alerts ? "alert" : ""),
+        gaugeKpi("CPU load", Math.min(1, +h_.load[0] / 12), h_.load[0]),
+        gaugeKpi("Memory", memUsed, `${((h_.mem_total_mb - h_.mem_avail_mb) / 1024).toFixed(1)} / ${(h_.mem_total_mb / 1024).toFixed(0)} GB`),
+        gaugeKpi("Disk", diskUsed, `${h_.disk_free_gb} GB free`)));
+    if (!homeView.counted) { homeView.counted = true; countUp(v); }
+    if (jobs.length) v.append(setupStrip(jobs));
+    // toolbar: filters, search, layout
+    const needs = x => (x.status && x.status.flags && x.status.flags.length) || ["stopped", "unknown"].includes(st(x));
+    const filters = { all: () => true, running: x => st(x) === "running", down: x => ["stopped", "maintenance", "unknown", "not_installed"].includes(st(x)), attention: needs };
+    const label = { all: "All", running: "Running", down: "Down", attention: "Needs attention" };
+    const shown = servers.filter(filters[homeView.filter]).filter(x => !homeView.q || (x.name + " " + x.game).toLowerCase().includes(homeView.q));
+    const search = h("input", { placeholder: "Search instances", value: homeView.q, style: "min-width:200px;flex:0 1 260px" });
+    search.oninput = () => { homeView.q = search.value.toLowerCase(); clearTimeout(search.t); search.t = setTimeout(refresh, 250); };
+    v.append(h("div", { class: "toolbar" },
+      Object.keys(filters).map(f => h("button", { class: "chip" + (homeView.filter === f ? " on" : ""), onclick: () => { homeView.filter = f; refresh(); } },
+        `${label[f]} · ${servers.filter(filters[f]).length}`)),
+      h("span", { class: "spacer" }), search,
+      h("div", { class: "seg" }, ["grid", "list"].map(l => h("button", { class: homeView.layout === l ? "on" : "", onclick: () => { homeView.layout = l; setPref("layout", l); refresh(); } }, l === "grid" ? "▦ Grid" : "☰ List")))));
+    const body = homeView.layout === "list" ? serverTable(shown) : h("div", { class: "grid" }, shown.map(serverCard));
+    if (!shown.length) v.append(h("div", { class: "card empty" }, h("b", null, "Nothing matches"), "Try another filter."));
+    else v.append(h("div", { class: "split" }, body, recentEvents()));
+    if (document.activeElement !== search && homeView.q) { search.focus(); search.setSelectionRange(search.value.length, search.value.length); }
+  };
+  await refresh(); timer = setInterval(refresh, 8000);
+}
+function countUp(root) {
+  if (matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  root.querySelectorAll(".kpi .v").forEach(el => {
+    const node = el.firstChild, target = node && node.nodeType === 3 ? parseInt(node.textContent, 10) : NaN;
+    if (!(target > 0)) return;
+    const t0 = performance.now(), step = now => { const k = Math.min(1, (now - t0) / 650), e = 1 - Math.pow(1 - k, 3);
+      node.textContent = String(Math.round(target * e)); if (k < 1) requestAnimationFrame(step); };
+    node.textContent = "0"; requestAnimationFrame(step);
+  });
+}
+function welcome() {
+  const games = [["reforger", "Arma Reforger", "Conflict, Game Master, Combat Ops, Capture & Hold"], ["rust", "Rust", "Survival PvP, with optional Oxide plugins"], ["arma3", "Arma 3", "Vanilla, KP Liberation, Altis Life"]];
+  return [h("div", { class: "hero" },
+      h("h1", { text: `Welcome${data.community && data.community !== "My Community" ? ", " + data.community : ""}` }),
+      h("p", { text: "HostSpawn sets up your game servers for you, keeps them running, updates and backs them up. Start by creating your first instance." }),
+      h("button", { class: "primary", style: "font-size:15px;padding:12px 20px", onclick: () => go("#/new") }, "Create your first instance"),
+      h("div", { class: "howto" }, h("div", null, h("b", null, "01"), "Pick a game"), h("div", null, h("b", null, "02"), "Choose a server type and map"),
+        h("div", null, h("b", null, "03"), "Press Deploy: HostSpawn downloads and starts it"))),
+    h("h3", { class: "sub", style: "text-transform:uppercase;letter-spacing:.8px;margin:4px 0 10px", text: "Start with a game" }),
+    h("div", { class: "choices", style: "margin-bottom:18px" }, games.map(([id, name, about]) => h("button", { class: "choice",
+      onclick: () => { wiz.step = 1; wiz.game = id; wiz.mode = null; wiz.options = {}; go("#/new"); } },
+      h("div", { class: "t" }, h("span", { class: "gameicon", style: "width:32px;height:32px;font-size:12px", text: ICON[name] }), name), h("p", { text: about })))),
+    h("div", { class: "card row", style: "justify-content:space-between" }, h("div", null, h("b", null, "Check what this machine needs"),
+      h("div", { class: "sub", text: "Some server types need extra software (a database, libraries). The Dependencies page shows what's missing." })),
+      h("button", { onclick: () => go("#/deps") }, "Open Dependencies"))];
+}
+function setupStrip(jobs) {
+  const g = h("div", { class: "grid", style: "margin-bottom:18px" });
+  for (const j of jobs) {
+    const cur = j.steps[j.current] || {}, doneN = j.steps.filter(s => s.state === "done" || s.state === "skipped").length;
+    g.append(h("div", { class: "card click", onclick: () => go("#/job/" + j.id) },
+      h("div", { class: "top" }, h("div", { class: "row" }, h("div", { class: "gameicon", text: ICON[j.game_name] || "?" }),
+        h("div", null, h("h2", { text: j.name }), h("div", { class: "sub", text: `${j.game_name} · ${j.mode_name}` }))),
+        h("span", { class: "pill " + (j.status === "failed" ? "s-stopped" : "s-starting") }, h("i"),
+          { running: "Setting up", checking: "Checking", waiting: "Needs you", failed: "Failed", cancelled: "Cancelled", queued: "Queued" }[j.status] || j.status)),
+      h("div", { class: "sub", text: cur.title + (cur.detail ? " · " + cur.detail : "") }),
+      h("div", { class: "bar", style: "height:4px;margin-top:10px" }, h("i", { style: `width:${Math.max(3, doneN / j.steps.length * 100)}%` }))));
+  }
+  return h("div", null, h("h3", { class: "sub", style: "text-transform:uppercase;letter-spacing:.8px;margin:0 0 10px", text: "Being set up" }), g);
+}
+function serverCard(s) {
+  const st = s.status || {};
+  return h("div", { class: "card click", onclick: () => go("#/server/" + encodeURIComponent(s.id)) },
+    h("div", { class: "top" }, h("div", { class: "row", style: "flex-wrap:nowrap;min-width:0" }, h("div", { class: "gameicon", text: ICON[s.game] || "?" }),
+      h("div", { style: "min-width:0" }, h("h2", { text: s.name }), h("div", { class: "sub", text: s.game + (s.mode_name ? " · " + s.mode_name : "") }))), pill(st.state)),
+    stats(s), checksRow(s),
+    st.flags && st.flags.length ? h("ul", { class: "flags" }, st.flags.slice(0, 3).map(f => h("li", { text: f }))) : null,
+    actionButtons(s));
+}
+function serverTable(list) {
+  const t = h("table", { class: "list" }, h("thead", null, h("tr", null, ["Instance", "Status", "Players", "FPS", "Memory", "Uptime", "Health"].map((c, i) => h("th", { class: i > 3 && i < 6 ? "hide-sm" : "", text: c })))));
+  const tb = h("tbody");
+  for (const s of list) {
+    const st = s.status || {}, ck = s.checks || {};
+    const okN = [ck.process, ck.query, ck.rcon ? ck.rcon.ok : null].filter(x => x === true).length, totN = [ck.process, ck.query, ck.rcon].filter(x => x != null).length;
+    tb.append(h("tr", { class: "click", onclick: () => go("#/server/" + encodeURIComponent(s.id)) },
+      h("td", null, h("div", { class: "row", style: "flex-wrap:nowrap" }, h("span", { class: "gameicon", style: "width:28px;height:28px;font-size:11px", text: ICON[s.game] || "?" }),
+        h("div", null, h("b", { text: s.label || s.name }), h("div", { class: "sub", text: s.name + (s.mode_name ? " · " + s.mode_name : "") })))),
+      h("td", null, pill(st.state)),
+      h("td", { class: "num", text: st.players != null ? `${st.players}${st.max_players ? " / " + st.max_players : ""}` : "–" }),
+      h("td", { class: "num", text: st.fps != null ? Math.round(st.fps) : "–" }),
+      h("td", { class: "num hide-sm", text: st.mem_mb ? (st.mem_mb / 1024).toFixed(1) + " GB" : "–" }),
+      h("td", { class: "num hide-sm", text: st.uptime || dur(st.uptime_s) }),
+      h("td", { class: "num", text: totN ? `${okN}/${totN} ok` : "–" })));
+  }
+  t.append(tb);
+  return h("div", { class: "card", style: "padding:6px 8px" }, t);
+}
+function recentEvents() {
+  const names = Object.fromEntries(data.servers.map(s => [s.id, s.name]));
+  const evs = (data.events || []).slice(-10).reverse();
+  return h("div", { class: "card" }, h("div", { class: "row", style: "justify-content:space-between;margin-bottom:6px" }, h("h3", { style: "margin:0", text: "Recent events" }),
+      h("a", { href: "#/events", style: "font-size:12.5px" }, "All →")),
+    evs.length ? evs.map(e => h("div", { style: "padding:7px 0;border-top:1px solid var(--line);font-size:13px" },
+      h("div", { class: "row", style: "justify-content:space-between" }, h("span", { class: "sub", text: names[e.server] || e.server }),
+        h("span", { class: "sub", style: "font-family:var(--mono)", text: fmtUK(e.t * 1000, { hour: "2-digit", minute: "2-digit" }) })),
+      h("div", { class: "l-" + e.level, text: e.message }))) : h("div", { class: "sub", text: "Nothing yet." }));
+}
+
+// Server panel (tabs)
+let panelTab = "overview";
+async function pageServer(id) {
+  let logs = {}, logName = null;
+  const v = view();
+  if (pageServer.last !== id) { panelTab = "overview"; pageServer.last = id; }
+  const crumb = name => h("div", { class: "crumb" }, h("a", { href: "#/" }, "Overview"), "  /  ", name || id);
+  try { await loadCatalog(); } catch (e) {}
+  refresh = async () => {
+    await loadOverview(); renderTopbar();
+    let s; try { s = await api("/api/server?id=" + encodeURIComponent(id)); } catch (e) { v.replaceChildren(header("Instance not found", "", null, crumb())); return; }
+    if (panelTab === "console" && document.activeElement && document.activeElement.tagName === "INPUT") return;  // don't wipe a command being typed
+    if (panelTab === "settings" && v.querySelector("[data-dirty]")) return;  // or unsaved settings
+    const st = s.status || {};
+    const keepScroll = $("pre.log") ? $("pre.log").scrollTop : null;
+    const tabs = [["overview", "Overview"], ["console", "Console & logs"], ["backups", "Backups"], ["schedule", "Schedule"],
+      ...(s.wipes ? [["wipes", "Wipes"]] : []), ...(s.rotation ? [["rotation", "Map rotation"]] : []), ["settings", "Settings"]];
+    const body = {
+      overview: () => h("div", { class: "two" },
+        h("div", { class: "stack" }, h("div", { class: "card" }, stats(s), checksRow(s),
+            st.flags && st.flags.length ? h("ul", { class: "flags" }, st.flags.map(f => h("li", { text: f }))) : null, actionButtons(s),
+            s.panel_url ? h("div", { style: "margin-top:12px" }, h("a", { href: s.panel_url, target: "_blank", rel: "noopener" }, "Open its own panel ↗")) : null,
+            s.steam_user && s.controllable ? h("div", { style: "margin-top:12px" }, steamLoginBox("server:" + s.id, s.steam_user, () => { toast("Steam login saved"); refresh(); })) : null),
+          eventsCard(s)),
+        h("div", { class: "stack" }, infoCard(s))),
+      console: () => logCard(s),
+      backups: () => h("div", { class: "two" }, backupsCard(s), h("div", { class: "card" }, h("h3", { text: "Back up now" }),
+        h("p", { class: "sub", style: "margin:0 0 12px", text: "Makes a backup straight away. Daily backups run on their own (Settings)." }),
+        s.actions.includes("backup") ? h("button", { class: "primary", disabled: !s.controllable, onclick: () => act(s, "backup") }, "Back up now") : h("div", { class: "sub", text: "This server backs up with its own scripts." }))),
+      schedule: () => scheduleCard(s),
+      wipes: () => wipesTab(s),
+      rotation: () => rotationTab(s),
+      settings: () => settingsTab(s),
+    }[panelTab] || (() => "");
+    v.replaceChildren(
+      header(s.label || s.name, `${s.label ? s.name + " · " : ""}${s.game}${s.mode_name ? " · " + s.mode_name : ""} · kept up by ${WHO[s.supervised_by]}`, pill(st.state), crumb(s.name)),
+      devBanner() || "",
+      h("div", { class: "ptabs" }, tabs.map(([k, t]) => h("button", { class: panelTab === k ? "on" : "", onclick: () => { panelTab = k; refresh(); } }, t))),
+      body());
+    if (keepScroll != null && $("pre.log")) $("pre.log").scrollTop = keepScroll;
+  };
+  function logCard(s) {
+    const pre = h("pre", { class: "log" }, "Loading…"), tabs = h("div", { class: "tabs" });
+    const show = () => { pre.textContent = logs[logName] || "No log yet."; pre.scrollTop = pre.scrollHeight; tabs.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.n === logName)); };
+    const load = async () => { try { logs = await api("/api/logs?server=" + encodeURIComponent(s.id)); } catch (e) { logs = {}; }
+      const names = Object.keys(logs); if (!names.includes(logName)) logName = names[0]; tabs.replaceChildren(...names.map(n => h("button", { "data-n": n, onclick: () => { logName = n; show(); } }, n)),
+        h("button", { class: "ghost", onclick: load }, "↻ Refresh")); show(); };
+    load();
+    const card = h("div", { class: "card" }, h("h3", { text: "Console & logs" }), tabs, pre);
+    if (s.actions.includes("send") && s.controllable) {
+      const inp = h("input", { placeholder: "Console command (e.g. say Hello)", maxlength: 300, style: "flex:1" });
+      card.append(h("form", { class: "row", style: "margin-top:10px;flex-wrap:nowrap", onsubmit: async e => { e.preventDefault(); if (!inp.value.trim()) return;
+        try { const r = await api("/api/action", { server: s.id, action: "send", arg: inp.value }); toast(r.message || "Sent"); inp.value = ""; setTimeout(load, 1500); } catch (er) { toast(er.message, true); } } },
+        inp, h("button", { class: "primary", type: "submit" }, "Send")));
+    }
+    return card;
+  }
+  function infoCard(s) {
+    const dl = h("dl", { class: "kv" });
+    const add = (k, v) => { if (v != null && v !== "") dl.append(h("dt", { text: k }), h("dd", { text: v })); };
+    add("Game", s.game); add("Server type", s.mode_name); add("Game port", s.ports.port); add("Query port", s.ports.query_port);
+    add("RCON port", s.ports.rcon_port ? s.ports.rcon_port + " (this machine only)" : null); add("Created", s.created);
+    add("Managed by", s.managed ? "HostSpawn (created here)" : "its own scripts");
+    return h("div", { class: "card" }, h("h3", { text: "Details" }), dl);
+  }
+  function scheduleCard(s) {
+    const c = h("div", { class: "card" }, h("h3", { text: "Schedule" }));
+    if (!s.schedule || !s.schedule.length) c.append(h("div", { class: "sub", text: "No restarts or wipes scheduled. Daily backup at 04:30 (UK)." }));
+    else for (const e of s.schedule.slice(0, 5)) c.append(h("div", { class: "row", style: "justify-content:space-between;padding:4px 0" }, h("span", { text: e.what }), h("span", { class: "sub", text: ukTime(e.when) })));
+    return c;
+  }
+  function backupsCard(s) {
+    const c = h("div", { class: "card" }, h("h3", { text: "Backups" }));
+    if (!s.backups.length) c.append(h("div", { class: "sub", text: "No backups yet." }));
+    for (const b of s.backups.slice(0, 6)) c.append(h("div", { class: "row", style: "justify-content:space-between;padding:4px 0;font-size:13px" },
+      h("span", { style: "font-family:var(--mono);font-size:12px;overflow-wrap:anywhere", text: b.name }), h("span", { class: "sub", text: `${size(b.size)} · ${ago(Date.now() / 1000 - b.time)}` })));
+    return c;
+  }
+  function eventsCard(s) {
+    const evs = (data.events || []).filter(e => e.server === s.id).slice(-8).reverse();
+    const c = h("div", { class: "card" }, h("h3", { text: "Recent events" }));
+    if (!evs.length) c.append(h("div", { class: "sub", text: "Nothing yet." }));
+    for (const e of evs) c.append(h("div", { class: "row", style: "padding:4px 0;font-size:13px;flex-wrap:nowrap;align-items:baseline" },
+      h("span", { class: "sub", style: "font-family:var(--mono);flex:none", text: fmtUK(e.t * 1000, { hour: "2-digit", minute: "2-digit" }) }), h("span", { class: "l-" + e.level, text: e.message })));
+    return c;
+  }
+  function dangerCard(s) {
+    return h("div", { class: "card", style: "border-color:rgba(255,92,122,.25)" }, h("h3", { style: "color:var(--bad)", text: "Delete instance" }),
+      h("p", { class: "sub", style: "margin:0 0 12px", text: "Stops it and deletes its files and settings, so you can start again. This can't be undone." }),
+      h("button", { class: "danger", onclick: async () => {
+        const keep = h("label", { class: "check", style: "margin-bottom:14px" }, h("input", { type: "checkbox", checked: true }), "Keep its backups");
+        const r = await ask({ title: `Delete ${s.name}?`, text: "The instance is stopped and its folder, settings and passwords are removed.", want: s.name, okLabel: "Delete instance", danger: true, extra: keep });
+        if (r == null) return;
+        try { const out = await api("/api/delete", { server: s.id, confirm: r, keep_backups: keep.querySelector("input").checked }); toast("Instance " + out.message); go("#/"); }
+        catch (e) { toast(e.message, true); }
+      } }, "Delete instance…"));
+  }
+  function rotationTab(s) {
+    const r = s.rotation, all = (catalog && catalog[s.game_id] && catalog[s.game_id].scenarios) || [];
+    const f = { on: r.on, list: r.list.map(x => x.id) };
+    const label = id => (all.find(x => x.id === id) || { label: id }).label;
+    const card = h("div", { class: "card" }), dirty = () => card.setAttribute("data-dirty", "1");
+    const listBox = h("div");
+    const paint = () => listBox.replaceChildren(...(f.list.length ? f.list.map((id, i) => h("div", { class: "row", style: "justify-content:space-between;padding:9px 0;border-top:1px solid var(--line);flex-wrap:nowrap" },
+        h("div", { class: "row", style: "flex-wrap:nowrap" }, h("span", { class: "tag", style: "margin:0;min-width:28px;text-align:center", text: String(i + 1) }),
+          h("span", { text: label(id) }), id === r.current ? h("span", { class: "tag ok", style: "margin:0 0 0 6px", text: "NOW" }) : null),
+        h("div", { class: "row", style: "flex-wrap:nowrap;gap:4px" },
+          h("button", { class: "ghost", title: "Move up", disabled: i === 0, onclick: () => { [f.list[i - 1], f.list[i]] = [f.list[i], f.list[i - 1]]; dirty(); paint(); } }, "↑"),
+          h("button", { class: "ghost", title: "Move down", disabled: i === f.list.length - 1, onclick: () => { [f.list[i + 1], f.list[i]] = [f.list[i], f.list[i + 1]]; dirty(); paint(); } }, "↓"),
+          h("button", { class: "ghost", title: "Remove", onclick: () => { f.list.splice(i, 1); dirty(); paint(); } }, "×"))))
+      : [h("div", { class: "sub", style: "padding:8px 0", text: "No maps yet. Add at least two below." })]));
+    paint();
+    const pick = h("select", { style: "flex:1" }, [...new Set(all.map(x => x.mode_name))].map(mode => h("optgroup", { label: mode },
+      all.filter(x => x.mode_name === mode).map(x => h("option", { value: x.id }, x.map)))));
+    const add = h("button", { onclick: () => { if (f.list.length < 20 && !f.list.includes(pick.value)) { f.list.push(pick.value); dirty(); paint(); } } }, "+ Add map");
+    const on = h("label", { class: "switch" }, h("input", { type: "checkbox", checked: f.on, onchange: e => { f.on = e.target.checked; dirty(); } }), h("i"));
+    card.append(h("h3", { text: "Map rotation" }),
+      h("div", { class: "setrow" }, h("div", { class: "l" }, h("b", { text: "Rotate maps" }),
+        h("span", { text: "Reforger plays one map per start, so HostSpawn switches to the next map at each scheduled restart (Settings tab)." })), on),
+      listBox, h("div", { class: "row", style: "margin-top:12px;flex-wrap:nowrap" }, pick, add),
+      h("div", { class: "row", style: "justify-content:flex-end;margin-top:14px" }, h("button", { class: "primary", disabled: !s.controllable || !isAdmin(), onclick: async () => {
+        if (f.on && f.list.length < 2) return toast("Add at least two maps to rotate", true);
+        try { const res = await api("/api/server/settings", { server: s.id, rotation: f.list, rotation_on: f.on }); card.removeAttribute("data-dirty"); toast(res.message); refresh(); } catch (e) { toast(e.message, true); } } }, "Save rotation")));
+    const side = h("div", { class: "card" }, h("h3", { text: "Now playing" }), h("div", { style: "font-size:17px;font-weight:600", text: r.current_label || "–" }),
+      h("div", { class: "sub", style: "margin:10px 0 4px", text: "Next up" }), h("div", { style: "font-weight:550", text: r.on ? r.next_label : "Rotation is off" }),
+      h("div", { class: "sub", style: "margin-top:10px", text: (s.settings && s.settings.restart_times && s.settings.restart_times.length) ? "Changes at the next restart: " + s.settings.restart_times.join(", ") + " (UK)" : "No scheduled restarts: add some on the Settings tab so the map changes." }),
+      h("button", { class: "danger", style: "margin-top:14px", disabled: !r.on || !s.controllable || !isAdmin(), onclick: () => act(s, "rotate") }, "Switch to the next map now"));
+    return h("div", { class: "two" }, card, h("div", { class: "stack" }, side));
+  }
+  function wipesTab(s) {
+    const w = s.wipes, f = { wipe_mode: w.mode, wipe_time: w.time, wipe_bp: w.bp, wipe_new_seed: w.new_seed, wipe_world_size: w.world_size || 0 };
+    const card = h("div", { class: "card" }), dirty = () => card.setAttribute("data-dirty", "1");
+    const row = (title, sub, ctl) => h("div", { class: "setrow" }, h("div", { class: "l" }, h("b", { text: title }), h("span", { text: sub })), ctl);
+    const seg = (key, opts) => { const box = h("div", { class: "seg" }); for (const [val, lbl] of opts) box.append(h("button", { class: f[key] === val ? "on" : "",
+      onclick: e => { f[key] = val; dirty(); box.querySelectorAll("button").forEach(b => b.classList.toggle("on", b === e.currentTarget)); } }, lbl)); return box; };
+    const time = h("input", { type: "time", value: f.wipe_time, oninput: e => { f.wipe_time = e.target.value; dirty(); } });
+    const size = h("input", { type: "number", min: 0, max: 6000, step: 250, value: f.wipe_world_size, style: "width:110px", oninput: e => { f.wipe_world_size = +e.target.value; dirty(); } });
+    const seed = h("label", { class: "switch" }, h("input", { type: "checkbox", checked: f.wipe_new_seed, onchange: e => { f.wipe_new_seed = e.target.checked; dirty(); } }), h("i"));
+    const next = w.next || [];
+    const nextBox = h("div", { class: "card" }, h("h3", { text: "Next wipes" }),
+      next.length ? next.map((e, i) => h("div", { class: "row", style: "justify-content:space-between;padding:8px 0;border-top:" + (i ? "1px solid var(--line)" : "0") },
+        h("div", null, h("b", { text: e.what }), e.forced ? h("span", { class: "tag warn", style: "margin-left:8px", text: "FACEPUNCH FORCED" }) : null),
+        h("span", { class: "sub", text: ukTime(e.when) + " · in " + dur((new Date(e.when) - Date.now()) / 1000) }))) : h("div", { class: "sub", text: "No wipes scheduled." }),
+      h("p", { class: "sub", style: "margin:12px 0 0", text: "Before every wipe: an in-game countdown, then a backup. Kept: players' identities, Rust+ pairings, clans and teams, owners, mods, bans and plugins." }));
+    const now = h("div", { class: "card", style: "border-color:rgba(255,92,122,.25)" }, h("h3", { style: "color:var(--bad)", text: "Wipe now" }),
+      h("p", { class: "sub", style: "margin:0 0 12px", text: "Players get a 5-minute countdown. A backup is made first." }),
+      h("div", { class: "row" }, h("button", { class: "danger", disabled: !s.controllable, onclick: () => act(s, "wipe", "map") }, "Map wipe"),
+        h("button", { class: "danger", disabled: !s.controllable, onclick: () => act(s, "wipe", "full") }, "Full wipe (map + blueprints)")));
+    card.append(h("h3", { text: "Wipe schedule" }),
+      row("How often", "Facepunch forces a map wipe on the first Thursday of every month (19:00 UK), so monthly always includes it.",
+        seg("wipe_mode", [["monthly", "Monthly"], ["biweekly", "Bi-weekly"], ["weekly", "Weekly"], ["off", "Off"]])),
+      row("Wipe time", "UK time on wipe Thursdays. 20:00 gives Facepunch's update an hour.", time),
+      row("Blueprints", "When players' learned blueprints are wiped too.", seg("wipe_bp", [["forced", "Monthly forced wipe"], ["every", "Every wipe"], ["never", "Never"]])),
+      row("New map seed", "A different map every wipe.", seed),
+      row("Map size on wipe", "0 = keep the current size. Only changes at a wipe (a size change between wipes would reset bases).", size),
+      h("div", { class: "row", style: "justify-content:flex-end;margin-top:14px" }, h("button", { class: "primary", disabled: !s.controllable, onclick: async () => {
+        try { const r = await api("/api/server/settings", { server: s.id, ...f }); card.removeAttribute("data-dirty"); toast(r.message); refresh(); } catch (e) { toast(e.message, true); } } }, "Save wipe schedule")));
+    return h("div", { class: "two" }, card, h("div", { class: "stack" }, nextBox, now));
+  }
+  function settingsTab(s) {
+    if (!s.managed) return h("div", { class: "card" }, h("h3", { text: "Settings" }),
+      h("p", { class: "sub", style: "margin:0", text: "This server is run by its own scripts, so its settings are changed there, not in HostSpawn." }));
+    const cfg = s.settings || {}, form = { name: s.name, max_players: cfg.max_players || 32, restart_times: [...(cfg.restart_times || [])],
+      backup: cfg.backup !== false, keep_backups: cfg.keep_backups || 14 };
+    const card = h("div", { class: "card" }), dirty = () => card.setAttribute("data-dirty", "1");
+    const row = (title, sub, ctl) => h("div", { class: "setrow" }, h("div", { class: "l" }, h("b", { text: title }), h("span", { text: sub })), ctl);
+    const name = h("input", { value: form.name, maxlength: 80, style: "min-width:260px", oninput: e => { form.name = e.target.value; dirty(); } });
+    const mp = h("input", { type: "number", min: 1, max: 500, value: form.max_players, style: "width:110px", oninput: e => { form.max_players = +e.target.value; dirty(); } });
+    const times = h("div", { class: "times" });
+    const paintTimes = () => times.replaceChildren(...form.restart_times.map(t => h("span", null, t, h("button", { title: "Remove", onclick: () => { form.restart_times = form.restart_times.filter(x => x !== t); dirty(); paintTimes(); } }, "×"))),
+      form.restart_times.length ? "" : h("span", { class: "sub", style: "background:none;border:0;padding:5px 0", text: "No daily restarts" }));
+    paintTimes();
+    const newTime = h("input", { type: "time", value: "05:00", style: "width:130px" });
+    const addTime = h("button", { onclick: () => { const t = newTime.value; if (t && !form.restart_times.includes(t) && form.restart_times.length < 6) { form.restart_times.push(t); form.restart_times.sort(); dirty(); paintTimes(); } } }, "+ Add");
+    const recS = (catalog && catalog[s.game_id] && catalog[s.game_id].restarts && catalog[s.game_id].restarts[s.mode]) || null;
+    const everyN = n => { const out = []; for (let hh = (n >= 24 ? 5 : 0); hh < 24; hh += n) out.push(String(hh).padStart(2, "0") + ":00"); return out; };
+    const presets = h("div", { class: "row", style: "gap:6px" }, h("span", { class: "sub", text: "Every:" }),
+      [[4, "4 h"], [6, "6 h"], [8, "8 h"], [12, "12 h"], [24, "Daily"]].map(([n, lbl]) => h("button", { class: "chip", title: everyN(n).join(", "),
+        onclick: () => { form.restart_times = everyN(n); dirty(); paintTimes(); } }, lbl)));
+    const applyRec = recS && recS.times.length ? h("button", { class: "ghost", title: recS.why, onclick: () => { form.restart_times = [...recS.times]; dirty(); paintTimes(); toast("Recommended schedule filled in: press Save changes"); } }, "Apply recommended") : null;
+    const sw = (on, set) => { const i = h("input", { type: "checkbox", checked: on, onchange: e => { set(e.target.checked); dirty(); } }); return h("label", { class: "switch" }, i, h("i")); };
+    const keep = h("input", { type: "number", min: 1, max: 100, value: form.keep_backups, style: "width:90px", oninput: e => { form.keep_backups = +e.target.value; dirty(); } });
+    const save = h("button", { class: "primary", disabled: !s.controllable, onclick: async () => {
+      try { const r = await api("/api/server/settings", { server: s.id, ...form }); card.removeAttribute("data-dirty"); toast(r.message); refresh(); } catch (e) { toast(e.message, true); } } }, "Save changes");
+    card.append(h("h3", { text: "Server settings" }),
+      row("Server name", "Shown in the server browser.", name),
+      row("Max players", "1–500. Applies at the next restart.", mp),
+      row("Daily restarts", recS && recS.times.length ? `UK time, with an update check. Recommended: ${recS.times.join(", ")}. ${recS.why}` : "UK time. Each restart also checks for game updates.",
+        h("div", { class: "stack", style: "gap:8px;justify-items:end" }, times, presets, h("div", { class: "row" }, newTime, addTime, applyRec))),
+      row("Daily backup", "Backs this server up every day (time is on the Settings page).", sw(form.backup, v => form.backup = v)),
+      row("Backups to keep", "Older ones are removed automatically.", keep),
+      h("div", { class: "row", style: "justify-content:flex-end;margin-top:14px" }, h("button", { class: "ghost", onclick: () => { card.removeAttribute("data-dirty"); refresh(); } }, "Undo changes"), save));
+    return h("div", { class: "stack" }, card, s.deletable ? dangerCard(s) : null);
+  }
+  await refresh(); timer = setInterval(refresh, 8000);
+}
+
+// New server wizard
+const wiz = { step: 0, game: null, mode: null, options: {} };
+async function pageNew() {
+  refresh = () => {};
+  const cat = await loadCatalog(); await loadOverview(); renderTopbar();
+  const v = view();
+  const titles = ["Game", "Server type", "Settings", "Review"];
+  const render = () => {
+    const g = cat[wiz.game], m = g && g.modes[wiz.mode];
+    v.replaceChildren(header("New instance", "Pick a game and a server type. HostSpawn downloads, sets up and starts it for you."), devBanner() || "",
+      h("div", { class: "steps" }, titles.map((t, i) => h("div", { class: i === wiz.step ? "on" : i < wiz.step ? "done" : "", text: t }))));
+    const foot = (nextOk, nextLabel = "Next", onNext = () => { wiz.step++; render(); }) => h("div", { class: "wizfoot" },
+      wiz.step ? h("button", { class: "ghost", onclick: () => { wiz.step--; render(); } }, "← Back") : h("span"),
+      h("button", { class: "primary", disabled: !nextOk, onclick: onNext }, nextLabel));
+    if (wiz.step === 0) {
+      v.append(h("div", { class: "choices" }, Object.entries(cat).map(([id, gg]) => h("button", { class: "choice" + (wiz.game === id ? " sel" : ""), disabled: gg.status !== "ready",
+        onclick: () => { if (wiz.game !== id) { wiz.mode = null; wiz.options = {}; } wiz.game = id; wiz.step = 1; render(); } },
+        h("div", { class: "t" }, h("span", { class: "gameicon", style: "width:32px;height:32px;font-size:12px", text: ICON[gg.name] || "?" }), gg.name),
+        h("p", { text: gg.about }), gg.status === "ready" ? [h("span", { class: "tag ok", text: Object.values(gg.modes).filter(x => x.status === "ready").length + " server types" }),
+          gg.login === "steam" ? h("span", { class: "tag warn", text: "Steam login" }) : h("span", { class: "tag", text: "No account needed" })] : h("span", { class: "tag", text: gg.reason || "Coming soon" })))));
+    } else if (wiz.step === 1) {
+      v.append(h("div", { class: "choices" }, Object.entries(g.modes).map(([id, mm]) => h("button", { class: "choice" + (wiz.mode === id ? " sel" : ""), disabled: mm.status !== "ready",
+        onclick: () => { wiz.mode = id; wiz.step = 2; render(); } }, h("div", { class: "t", text: mm.name }), h("p", { text: mm.about }),
+        mm.status === "ready" ? h("span", { class: "tag ok", text: "Ready" }) : h("span", { class: "tag", text: mm.reason || "Coming soon" }),
+        mm.has_releases ? h("span", { class: "tag", text: "Pick a release" }) : null, mm.licence ? h("span", { class: "tag", text: mm.licence }) : null))), foot(!!wiz.mode));
+    } else if (wiz.step === 2) {
+      const form = h("div", { class: "form" });
+      const o = wiz.options;
+      o.name = o.name || `${data.community || "My Community"} ${g.name} ${m.name}`.slice(0, 80);
+      form.append(h("label", { class: "f" }, "Server name", h("input", { value: o.name, maxlength: 80, oninput: e => o.name = e.target.value }), h("span", { class: "h", text: "Shown in the server browser." })));
+      for (const [k, spec] of Object.entries(g.options || {})) {
+        o[k] = o[k] ?? spec.default;
+        if (spec.type === "bool") {
+          const yes = h("button", { type: "button" }, "Yes"), no = h("button", { type: "button" }, "No");
+          const paint = () => { yes.className = o[k] ? "primary" : ""; no.className = o[k] ? "" : "primary"; };
+          yes.onclick = () => { o[k] = true; paint(); }; no.onclick = () => { o[k] = false; paint(); }; paint();
+          form.append(h("div", { class: "f", style: "grid-column:1/-1;display:grid;gap:8px;font-size:13.5px" }, h("span", { style: "color:var(--text);font-weight:550", text: spec.label }),
+            h("div", { class: "row" }, yes, no), spec.help ? h("span", { class: "sub", text: spec.help }) : null));
+          continue;
+        }
+        const out = h("b", { style: "font-family:var(--mono);color:var(--text)", text: o[k] });
+        form.append(h("label", { class: "f" }, h("span", null, spec.label, " · ", out),
+          h("input", { type: "range", min: spec.min, max: spec.max, step: spec.step || 1, value: o[k], oninput: e => { o[k] = +e.target.value; out.textContent = o[k]; } }),
+          h("span", { class: "h", text: `${spec.min} – ${spec.max}` })));
+      }
+      if (m.maps) {
+        o.map = o.map || Object.keys(m.maps)[0];
+        form.append(h("label", { class: "f" }, "Map", h("select", { onchange: e => o.map = e.target.value }, Object.entries(m.maps).map(([k, lbl]) => h("option", { value: k, selected: o.map === k }, lbl))),
+          wiz.game === "arma3" ? h("span", { class: "h", text: "DLC maps: players need that DLC." }) : h("span", { class: "h", text: "Pick where the game is played." })));
+      }
+      if (m.has_releases) {
+        const sel = h("select", { onchange: e => o.release = e.target.value }, h("option", { value: "" }, "Loading releases…"));
+        form.append(h("label", { class: "f" }, "Release", sel, h("span", { class: "h", text: "Newest is suggested; older ones stay available." })));
+        api(`/api/catalog/releases?game=${wiz.game}&mode=${wiz.mode}`).then(rels => {
+          sel.replaceChildren(...rels.map((r, i) => h("option", { value: r.tag, selected: o.release ? o.release === r.tag : i === 0 }, `${r.tag}  (${r.date})${i === 0 ? "  · newest" : ""}`)));
+          o.release = o.release || (rels[0] && rels[0].tag) || "";
+        }).catch(e => sel.replaceChildren(h("option", { value: "" }, "Newest (couldn't list releases)")));
+      }
+      if (wiz.game === "reforger" && m.maps && Object.keys(m.maps).length > 1) {
+        o.rotation = o.rotation ?? false;
+        const yes = h("button", { type: "button" }, "Yes, rotate"), no = h("button", { type: "button" }, "No, keep one map");
+        const paint = () => { yes.className = o.rotation ? "primary" : ""; no.className = o.rotation ? "" : "primary"; };
+        yes.onclick = () => { o.rotation = true; paint(); }; no.onclick = () => { o.rotation = false; paint(); }; paint();
+        form.append(h("div", { class: "f", style: "grid-column:1/-1;display:grid;gap:8px;font-size:13.5px" },
+          h("span", { style: "color:var(--text);font-weight:550", text: `Rotate through all ${Object.keys(m.maps).length} ${m.name} maps?` }),
+          h("div", { class: "row" }, yes, no), h("span", { class: "sub", text: "The map changes at each scheduled restart, starting with the map you picked. Fine-tune it later on the server's Map rotation tab." })));
+      }
+      if (wiz.game === "rust") {
+        o.wipe_mode = o.wipe_mode || "monthly";
+        const box = h("div", { class: "seg" });
+        for (const [val, lbl] of [["monthly", "Monthly (recommended)"], ["biweekly", "Bi-weekly"], ["weekly", "Weekly"], ["off", "No wipes"]])
+          box.append(h("button", { type: "button", class: o.wipe_mode === val ? "on" : "", onclick: e => { o.wipe_mode = val; box.querySelectorAll("button").forEach(b => b.classList.toggle("on", b === e.currentTarget)); } }, lbl));
+        form.append(h("div", { class: "f", style: "grid-column:1/-1;display:grid;gap:8px;font-size:13.5px" },
+          h("span", { style: "color:var(--text);font-weight:550", text: "How often should the map wipe?" }), box,
+          h("span", { class: "sub", text: "Wipes run on Thursdays at 20:00 UK, after Facepunch's monthly forced update. Blueprints wipe on the monthly forced wipe. Change it later on the server's Wipes tab." })));
+      }
+      const rec = (g.restarts && g.restarts[wiz.mode]) || { times: [] };
+      if (rec.times.length) {
+        o.recommended_restarts = o.recommended_restarts ?? true;
+        const yes = h("button", { type: "button" }, "Yes"), no = h("button", { type: "button" }, "No restarts");
+        const paint = () => { yes.className = o.recommended_restarts ? "primary" : ""; no.className = o.recommended_restarts ? "" : "primary"; };
+        yes.onclick = () => { o.recommended_restarts = true; paint(); }; no.onclick = () => { o.recommended_restarts = false; o.restart_times = []; paint(); }; paint();
+        form.append(h("div", { class: "f", style: "grid-column:1/-1;display:grid;gap:8px;font-size:13.5px" },
+          h("span", { style: "color:var(--text);font-weight:550", text: "Use the recommended restart schedule?" }),
+          h("div", { class: "times" }, rec.times.map(t => h("span", { style: "padding-right:11px", text: t }))),
+          h("div", { class: "row" }, yes, no), h("span", { class: "sub", text: rec.why + " You can change this later on the server's Settings tab." })));
+      }
+      if (g.login === "steam") form.append(h("label", { class: "f" }, "Steam username for the download",
+        h("input", { value: o.steam_user || "", autocomplete: "off", oninput: e => o.steam_user = e.target.value.trim() }),
+        h("span", { class: "h", text: "Only the username. You type the password yourself in a terminal later, never here." })));
+      v.append(h("div", { class: "card" }, form), foot(true, "Review"));
+    } else {
+      const o = wiz.options, dl = h("dl", { class: "kv" });
+      const add = (k, val) => dl.append(h("dt", { text: k }), h("dd", { text: val }));
+      add("Game", g.name); add("Server type", m.name); add("Name", o.name);
+      for (const [k, spec] of Object.entries(g.options || {})) add(spec.type === "bool" ? spec.label.replace(/ so you can.*\?$/, "") : spec.label, spec.type === "bool" ? (o[k] ? "Yes" : "No") : o[k]);
+      if (o.map) add("Map", m.maps[o.map]); if (m.has_releases) add("Release", o.release || "newest");
+      if (o.steam_user) add("Steam user", o.steam_user);
+      const recR = (g.restarts && g.restarts[wiz.mode]) || { times: [] };
+      if (wiz.game === "reforger" && o.rotation) add("Map rotation", `all ${Object.keys(m.maps).length} ${m.name} maps, one per restart`);
+      if (wiz.game === "rust") add("Wipes", { monthly: "Monthly (first Thursday, 20:00 UK)", biweekly: "Bi-weekly (1st & 3rd Thursday)", weekly: "Weekly (Thursdays)", off: "None" }[o.wipe_mode || "monthly"]);
+      if (recR.times.length) add("Daily restarts", o.recommended_restarts === false ? "none" : recR.times.join(", ") + " (recommended)");
+      add("Ports", "picked automatically (free ones)"); add("Disk / RAM", `about ${g.size_gb} GB download · ${g.ram_gb} GB RAM`);
+      add("Passwords", "generated for you, stored privately");
+      // One click = one server: the button locks, and a one-time id makes a re-sent request harmless.
+      const rid = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random()).replace(/[^A-Za-z0-9-]/g, "");
+      let sent = false;
+      const deploy = async e => {
+        if (sent) return; sent = true;
+        const b = e && e.currentTarget; if (b) { b.disabled = true; b.textContent = "Starting…"; }
+        let tv = ""; try { tv = (await api("/api/terms")).version; } catch (_) {}
+        try { const j = await api("/api/deploy", { game: wiz.game, mode: wiz.mode, options: o, request_id: rid, accepted_terms: tv }); go("#/job/" + j.id); }
+        catch (err) { toast(err.message, true); sent = false; if (b) { b.disabled = false; b.textContent = "Create instance"; } }
+      };
+      // Terms: listed plainly, Deploy stays locked until they're accepted.
+      const terms = (g.terms && g.terms[wiz.mode]) || [];
+      const tick = h("input", { type: "checkbox" });
+      const read = async () => { let t; try { t = await api("/api/terms"); } catch (e) { return toast(e.message, true); }
+        await ask({ title: "HostSpawn Terms of Use", text: "", okLabel: "Close", extra: h("pre", { class: "log", style: "height:320px;margin-bottom:14px", text: t.text }) }); };
+      const termsCard = h("div", { class: "card", style: "margin-top:16px" }, h("h3", { text: "Terms you're agreeing to" }),
+        terms.map(t => h("div", { class: "row", style: "justify-content:space-between;padding:8px 0;border-top:1px solid var(--line);flex-wrap:nowrap" },
+          h("div", null, h("b", { text: t.name }), h("div", { class: "sub", text: t.detail })),
+          t.url ? h("a", { class: "btn", href: t.url, target: "_blank", rel: "noopener" }, "Read") : t.name.startsWith("HostSpawn") ? h("button", { onclick: read }, "Read") : null)),
+        h("label", { class: "check", style: "margin-top:12px;color:var(--text)" }, tick, "I have read and accept these terms"));
+      const f = foot(false, "Create instance", deploy);
+      const deployBtn = f.querySelector("button.primary");
+      tick.onchange = () => { deployBtn.disabled = !tick.checked; };
+      v.append(h("div", { class: "card" }, dl), termsCard, f);
+    }
+  };
+  render();
+}
+
+// Deploy / loading screen
+async function pageJob(id) {
+  const v = view(); let showLog = false;
+  refresh = async () => {
+    let j; try { j = await api("/api/job?id=" + encodeURIComponent(id)); } catch (e) { v.replaceChildren(header("Not found", "This setup no longer exists.")); clearInterval(timer); return; }
+    const total = j.steps.length, done = j.steps.filter(s => s.state === "done" || s.state === "skipped").length;
+    const cur = j.steps[j.current] || {}, curPct = cur.state === "running" && cur.percent != null ? cur.percent / 100 : 0;
+    const overall = j.status === "done" ? 1 : (done + curPct) / total;
+    const R = 96, C = 2 * Math.PI * R;
+    const ring = h("div", { class: "ring" + (["running", "checking", "queued"].includes(j.status) ? " busy" : "") });
+    ring.innerHTML = `<svg viewBox="0 0 220 220"><defs><linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="#3ee6c4"/><stop offset="1" stop-color="#7c5cff"/></linearGradient></defs>
+      <circle cx="110" cy="110" r="${R}" fill="none" stroke="rgba(148,163,184,.12)" stroke-width="10"/>
+      <circle class="halo" cx="110" cy="110" r="${R}" fill="none" stroke="url(#rg)" stroke-opacity=".18" stroke-width="22" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - overall)}"/>
+      <circle class="fg" cx="110" cy="110" r="${R}" fill="none" stroke="url(#rg)" stroke-width="10" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - overall)}"/></svg>`;
+    ring.append(h("div", { class: "pct" }, h("b", { text: Math.round(overall * 100) + "%" }),
+      h("span", { text: { done: "Ready", failed: "Stopped", cancelled: "Cancelled", waiting: "Waiting for you" }[j.status] || `Step ${Math.min(j.current + 1, total)} of ${total}` })));
+    const eta = cur.speed && cur.total && cur.done != null ? (cur.total - cur.done) / cur.speed : null;
+    const left = h("div", { class: "card" }, ring, h("div", { style: "text-align:center;margin-bottom:14px" }, h("h2", { style: "font-size:17px", text: j.name }), h("div", { class: "sub", text: `${j.game_name} · ${j.mode_name}` })),
+      h("div", { class: "metrics" }, statTile("Current", cur.percent != null && cur.state === "running" ? cur.percent + "%" : "–"),
+        statTile("Speed", cur.speed && cur.state === "running" ? (cur.speed / 2 ** 20).toFixed(1) + " MB/s" : "–"),
+        statTile("Time left", eta != null && cur.state === "running" ? dur(eta) : "–"), statTile("Elapsed", dur(((j.finished || Date.now() / 1000) - j.created)))));
+    const right = h("div", { class: "stack" });
+    if (j.status === "done") right.append(h("div", { class: "okbox" }, h("h2", null, "✓ Your instance is ready"),
+      h("p", { class: "sub", style: "margin:0 0 12px" }, "Players connect to ", h("b", { style: "font-family:var(--mono);color:var(--text)", text: j.connect || "" }), ". HostSpawn now watches it: crash recovery, updates and daily backups."),
+      h("div", { class: "row" }, h("button", { class: "primary", onclick: () => go("#/server/" + encodeURIComponent(j.server_id)) }, "Open instance panel"), h("button", { class: "ghost", onclick: () => go("#/") }, "All instances"))));
+    if (j.status === "failed" || j.status === "cancelled") right.append(h("div", { class: "alertbox", text: j.error || (j.back_to_settings ? "Back to settings." : "Cancelled.") }),
+      h("div", { class: "row", style: "margin-bottom:14px" }, h("button", { class: "primary", onclick: () => jobAct("retry") }, "Retry from this step"),
+        h("button", { onclick: async () => { const ok = await ask({ title: "Discard this attempt?", text: "Deletes the half-made instance folder so you can start again.", okLabel: "Discard", danger: true }); if (ok) { await jobAct("discard"); go("#/new"); } } }, "Discard and start again"),
+        j.back_to_settings ? h("button", { class: "ghost", onclick: async () => { await jobAct("discard"); wiz.step = 2; go("#/new"); } }, "Back to settings") : null));
+    if (j.status === "waiting" && cur.guide) {
+      const gd = cur.guide;
+      right.append(h("div", { class: "guide" }, h("h2", { text: gd.title }), h("p", { text: gd.text }),
+        cur.check_message ? h("div", { class: "alertbox", text: cur.check_message }) : null,
+        gd.login ? steamLoginBox(gd.login.target, gd.login.user, () => jobAct("continue")) : null,
+        gd.login ? h("div", { class: "sub", style: "margin:6px 0", text: "Or use a terminal:" }) : null,
+        (gd.commands || []).map(c => h("div", { class: "cmd" }, h("code", { text: c }), h("button", { onclick: async e => {
+          try { await navigator.clipboard.writeText(c); e.target.textContent = "Copied"; } catch (_) { toast("Select the command and copy it", true); } setTimeout(() => e.target.textContent = "Copy", 1500); } }, "Copy"))),
+        h("div", { class: "row", style: "margin-top:12px" }, h("button", { class: "primary", onclick: () => jobAct("continue") }, "Continue"),
+          h("button", { class: "ghost", onclick: () => jobAct("back") }, "← Back"), cur.skippable ? h("button", { class: "ghost", onclick: () => jobAct("skip") }, "Skip for now") : null)));
+    }
+    const tl = h("ol", { class: "timeline" });
+    j.steps.forEach((s, i) => {
+      const icon = { done: "✓", failed: "!", waiting: "…", skipped: "–", cancelled: "×", running: "" }[s.state] ?? String(i + 1);
+      const t = s.finished && s.started ? dur(s.finished - s.started) : s.state === "running" && s.started ? dur(Date.now() / 1000 - s.started) : "";
+      tl.append(h("li", { class: s.state }, h("span", { class: "ic", text: icon }),
+        h("div", null, h("div", { class: "nm", text: s.title }), s.state === "running" && s.detail ? h("div", { class: "dt", text: s.detail }) : null,
+          s.state === "running" && s.percent != null ? h("div", { class: "bar" }, h("i", { style: `width:${s.percent}%` })) : null),
+        h("span", { class: "tm", text: t })));
+    });
+    right.append(h("div", { class: "card" }, h("div", { class: "row", style: "justify-content:space-between;margin-bottom:4px" }, h("h3", { style: "margin:0", text: "Setup steps" }),
+      h("div", { class: "row" }, ["running", "checking", "waiting", "queued"].includes(j.status) ? h("button", { class: "ghost", onclick: async () => { if (await ask({ title: "Cancel setup?", text: "Stops after the current step. You can Retry or Discard later.", okLabel: "Cancel setup", danger: true })) jobAct("cancel"); } }, "Cancel") : null,
+        h("button", { class: "ghost", onclick: () => { showLog = !showLog; refresh(); } }, showLog ? "Hide log" : "Show log"))), tl,
+      showLog ? h("pre", { class: "log", style: "height:240px;margin-top:12px", text: (j.log || []).join("\n") }) : null));
+    v.replaceChildren(header("Setting up your instance", null, null, h("div", { class: "crumb" }, h("a", { href: "#/" }, "Instances"), "  /  Setup")), h("div", { class: "deploy" }, left, right));
+    const pre = $("pre.log"); if (pre) pre.scrollTop = pre.scrollHeight;
+    if (["done", "failed", "cancelled", "waiting"].includes(j.status)) { clearInterval(timer); timer = setInterval(refresh, 5000); }
+  };
+  async function jobAct(action) {
+    try { await api("/api/job", { id, action }); } catch (e) { toast(e.message, true); }
+    clearInterval(timer); timer = setInterval(refresh, 1000); refresh();
+  }
+  await refresh(); clearInterval(timer); timer = setInterval(refresh, 1000);
+}
+
+// Supported games
+async function pageGames() {
+  refresh = () => {};
+  const cat = await loadCatalog();
+  await loadOverview(); renderTopbar();
+  const v = view(); v.replaceChildren(header("Supported games", "What HostSpawn can set up today, and what's coming."));
+  const g = h("div", { class: "grid" });
+  for (const [id, gg] of Object.entries(cat)) {
+    const c = h("div", { class: "card" }, h("div", { class: "top" }, h("div", { class: "row" }, h("div", { class: "gameicon", text: ICON[gg.name] || "?" }),
+      h("div", null, h("h2", { text: gg.name }), h("div", { class: "sub", text: gg.status === "ready" ? `about ${gg.size_gb} GB · ${gg.ram_gb} GB RAM · ${gg.login === "steam" ? "Steam login needed" : "no account needed"}` : gg.reason || "Coming soon" }))),
+      h("span", { class: "tag " + (gg.status === "ready" ? "ok" : ""), style: "margin:0", text: gg.status === "ready" ? "AVAILABLE" : "SOON" })),
+      h("p", { class: "sub", style: "margin:0 0 10px", text: gg.about }));
+    for (const [mid, mm] of Object.entries(gg.modes)) c.append(h("div", { class: "row", style: "justify-content:space-between;padding:6px 0;border-top:1px solid var(--line);flex-wrap:nowrap" },
+      h("div", { style: "min-width:0" }, h("div", { style: "font-weight:550", text: mm.name }), h("div", { class: "sub", text: mm.status === "ready" ? mm.about : (mm.reason || "Coming soon") })),
+      h("span", { class: "dot " + (mm.status === "ready" ? "ok" : ""), style: "flex:none" })));
+    if (gg.status === "ready") c.append(h("button", { class: "primary", style: "margin-top:12px", onclick: () => { wiz.step = 1; wiz.game = id; wiz.mode = null; wiz.options = {}; go("#/new"); } }, `Create a ${gg.name} server`));
+    g.append(c);
+  }
+  v.append(g);
+}
+
+// Dependencies
+async function pageDeps() {
+  refresh = async () => {
+    let d; try { d = await api("/api/deps"); } catch (e) { return; }
+    await loadOverview(); renderTopbar();
+    const here = d.items.filter(i => i.state !== "other_os"), other = d.items.filter(i => i.state === "other_os");
+    const label = { installed: "Installed", missing: "Missing", installing: "Installing…" };
+    const row = i => {
+      const btns = h("div", { class: "row", style: "flex-wrap:nowrap" });
+      if (i.state === "missing" && i.server) {
+        const s = (data.servers || []).find(x => x.id === i.server);
+        if (s) btns.append(h("button", { class: "primary", onclick: () => act(s, "oxide") }, "Install"));
+      } else if (i.state === "missing" && i.command) {
+        btns.append(h("button", { class: "primary", onclick: async () => {
+          const ok = await ask({ title: `Install ${i.name}?`, text: (d.sudo_without_password ? "HostSpawn will run: " : "Run this in a terminal: ") + i.command, okLabel: d.sudo_without_password ? "Install" : "OK" });
+          if (!ok || !d.sudo_without_password) return;
+          try { const r = await api("/api/deps/install", { id: i.id }); toast(r.command ? r.message : "Installing… this can take a minute"); } catch (e) { toast(e.message, true); }
+          setTimeout(refresh, 1500);
+        } }, "Install"));
+      }
+      if (i.state === "other_os" && i.url) btns.append(h("a", { class: "btn", href: i.url, target: "_blank", rel: "noopener" }, "Download"));
+      return h("div", { class: "row", style: "justify-content:space-between;padding:12px 0;border-top:1px solid var(--line);flex-wrap:nowrap;align-items:flex-start" },
+        h("div", { style: "min-width:0" }, h("div", { class: "row", style: "gap:8px" }, h("span", { style: "font-weight:600", text: i.name }),
+            i.state !== "other_os" ? h("span", { class: "pill " + (i.state === "installed" ? "s-running" : i.state === "installing" ? "s-starting" : "s-stopped") }, h("i"), label[i.state]) : null),
+          h("div", { class: "sub", text: i.why }), h("div", null, (i.needed_by || []).map(n => h("span", { class: "tag", text: n })))), btns);
+    };
+    const card = (title, sub, items) => h("div", { class: "card", style: "margin-bottom:16px" }, h("h3", { text: title }),
+      sub ? h("p", { class: "sub", style: "margin:-6px 0 4px", text: sub }) : null, items.length ? items.map(row) : h("div", { class: "sub", text: "Nothing here." }));
+    view().replaceChildren(header("Dependencies", "Everything HostSpawn and your server types need, besides HostSpawn itself.",
+        h("button", { onclick: refresh }, "↻ Check again")),
+      card(`This machine (${d.os === "linux" ? "Linux" : "Windows"})`, d.sudo_without_password ? "Install runs the command for you after you confirm it." : "Install shows the command for you to run (sudo needs your password).", here),
+      card("Windows", "For hosting on Windows. The Windows version installs these for you; until then, use the official downloads.", other));
+  };
+  await refresh(); timer = setInterval(refresh, 10000);
+}
+
+// Settings
+async function pageSettings() {
+  refresh = () => {};
+  await loadOverview(); renderTopbar();
+  let cfg; try { cfg = await api("/api/settings"); } catch (e) { return toast(e.message, true); }
+  const v = view();
+  const row = (title, sub, ctl) => h("div", { class: "setrow" }, h("div", { class: "l" }, h("b", { text: title }), h("span", { text: sub })), ctl);
+  const sw = (on, set) => h("label", { class: "switch" }, h("input", { type: "checkbox", checked: on, onchange: e => set(e.target.checked) }), h("i"));
+  const f = { community: cfg.community, backups: { ...cfg.backups } };
+  const name = h("input", { value: f.community, maxlength: 60, style: "min-width:240px", oninput: e => f.community = e.target.value });
+  const time = h("input", { type: "time", value: f.backups.time, oninput: e => f.backups.time = e.target.value });
+  const age = h("input", { type: "number", min: 1, max: 720, value: f.backups.max_age_hours, style: "width:100px", oninput: e => f.backups.max_age_hours = +e.target.value });
+  const save = async () => { try { const r = await api("/api/settings", f); toast(r.message); await loadOverview(); } catch (e) { toast(e.message, true); } };
+  const seg = (k, opts, d, after) => h("div", { class: "seg" }, opts.map(([val, lbl]) => h("button", { class: pref(k, d) === val ? "on" : "",
+    onclick: e => { setPref(k, val); applyTheme(); renderTopbar(); e.currentTarget.parentNode.querySelectorAll("button").forEach(b => b.classList.toggle("on", b === e.currentTarget)); after && after(); } }, lbl)));
+  const accents = [["teal", "#3ee6c4"], ["violet", "#8b7bff"], ["blue", "#5cb8ff"], ["amber", "#f5b74f"]];
+  const sw_ = h("div", { class: "row" }, accents.map(([k, c]) => h("button", { class: "swatch" + (pref("accent", "teal") === k ? " on" : ""), title: k, style: `background:${c}`,
+    onclick: e => { setPref("accent", k); applyTheme(); e.currentTarget.parentNode.querySelectorAll(".swatch").forEach(b => b.classList.toggle("on", b === e.currentTarget)); } })));
+  v.replaceChildren(header("Settings", "Choices for this install of HostSpawn."),
+    h("div", { class: "two" },
+      h("div", { class: "stack" },
+        h("div", { class: "card" }, h("h3", { text: "General" }),
+          row("Community name", "Your community or server brand. Used for default server names.", name)),
+        h("div", { class: "card" }, h("h3", { text: "Backups" }),
+          row("Daily backups", "Back up every server once a day. On by default.", sw(f.backups.enabled !== false, x => f.backups.enabled = x)),
+          row("Backup time", "UK time, 24-hour clock.", time),
+          row("Warn if older than", "Hours. You get a warning once a day if a server's newest backup is older.", age)),
+        h("div", { class: "row", style: "justify-content:flex-end" }, h("button", { class: "primary", onclick: save }, "Save settings"))),
+      h("div", { class: "stack" },
+        h("div", { class: "card" }, h("h3", { text: "Appearance" }),
+          row("Theme", "Saved for you on this device.", seg("theme", [["dark", "Dark"], ["light", "Light"], ["auto", "Auto"]], "dark")),
+          row("Accent colour", "Buttons, highlights and progress.", sw_),
+          row("Server list", "How the Overview shows servers.", seg("layout", [["grid", "Grid"], ["list", "List"]], "grid", () => homeView.layout = pref("layout", "grid")))),
+        isAdmin() && me ? usersCard() : "",
+        h("div", { class: "card" }, h("h3", { text: "About" }), (() => { const dl = h("dl", { class: "kv" });
+          const add = (k, val) => dl.append(h("dt", { text: k }), h("dd", { text: val }));
+          add("Copy", cfg.mode === "live" ? "Live (controls servers)" : "Development (test servers only)"); add("Health checks", `every ${Math.round(cfg.interval)} s`);
+          add("Servers folder", cfg.servers_dir || "Manager/servers"); return dl; })()))));
+}
+
+function usersCard() {
+  const card = h("div", { class: "card" }, h("h3", { text: "Users" }), h("div", { class: "sub", text: "Loading…" }));
+  const roles = [["admin", "Admin: everything"], ["moderator", "Moderator: run servers"], ["viewer", "Viewer: look only"]];
+  const paint = users => {
+    const rows = users.map(u => h("div", { class: "setrow" },
+      h("div", { class: "l" }, h("b", { text: u.username + (u.username === me.user ? " (you)" : "") }),
+        h("span", { text: u.last_login ? "Last signed in " + ago(Date.now() / 1000 - u.last_login) : "Never signed in" })),
+      h("div", { class: "row", style: "flex-wrap:nowrap" },
+        h("select", { onchange: async e => { try { const r = await api("/api/users", { action: "role", username: u.username, role: e.target.value }); toast("Role changed: they need to sign in again"); paint(r.users); } catch (x) { toast(x.message, true); e.target.value = u.role; } } },
+          roles.map(([v, l]) => h("option", { value: v, selected: u.role === v }, l))),
+        u.username !== me.user ? h("button", { class: "danger", onclick: async () => { if (!(await ask({ title: `Remove ${u.username}?`, text: "They'll be signed out and can't sign in again.", okLabel: "Remove", danger: true }))) return;
+          try { paint((await api("/api/users", { action: "remove", username: u.username })).users); } catch (x) { toast(x.message, true); } } }, "Remove") : "")));
+    const name = h("input", { placeholder: "Username", autocomplete: "off", spellcheck: "false" }), pw = pwField("Their first password", "new-password");
+    const role = h("select", null, roles.map(([v, l]) => h("option", { value: v, selected: v === "viewer" }, l)));
+    const add = h("button", { class: "primary", onclick: async () => { try { const r = await api("/api/users", { action: "add", username: name.value.trim(), password: pw.inp.value, role: role.value });
+      pw.inp.value = ""; toast(`${name.value.trim()} added. Give them their password in person; they can change it after signing in.`); paint(r.users); } catch (x) { toast(x.message, true); } } }, "Add user");
+    card.replaceChildren(h("h3", { text: "Users" }), ...rows,
+      h("div", { style: "border-top:1px solid var(--line);margin-top:6px;padding-top:14px;display:grid;gap:10px" }, h("b", { text: "Add someone" }), name, pw.box, role, h("div", { class: "row", style: "justify-content:flex-end" }, add)));
+  };
+  api("/api/users").then(paint).catch(e => card.replaceChildren(h("h3", { text: "Users" }), h("div", { class: "sub", text: e.message })));
+  return card;
+}
+
+// Tools
+async function pageTools() {
+  refresh = () => {};
+  await loadOverview(); renderTopbar();
+  const cmd = c => h("div", { class: "cmd" }, h("code", { text: c }), h("button", { onclick: async e => { try { await navigator.clipboard.writeText(c); e.target.textContent = "Copied"; } catch (_) {} setTimeout(() => e.target.textContent = "Copy", 1500); } }, "Copy"));
+  view().replaceChildren(header("Tools", "Handy tools for running game servers."),
+    h("div", { class: "grid" },
+      h("div", { class: "card" }, h("div", { class: "top" }, h("div", { class: "row" }, h("div", { class: "gameicon", text: "PBO" }), h("div", null, h("h2", { text: "PBO Manager" }),
+          h("div", { class: "sub", text: "Arma mission and addon files" }))), h("span", { class: "tag ok", style: "margin:0", text: "READY" })),
+        h("p", { class: "sub", style: "margin:0 0 10px", text: "List, unpack and pack .pbo files. Checks each file's checksum and refuses files that try to write outside the folder. In the desktop app you'll drag files in; for now, use these commands in HostSpawn's folder:" }),
+        cmd("./manager.sh pbo list mission.pbo"), cmd("./manager.sh pbo unpack mission.pbo mission_folder"), cmd("./manager.sh pbo pack mission_folder mission.pbo")),
+      h("div", { class: "card" }, h("div", { class: "top" }, h("div", { class: "row" }, h("div", { class: "gameicon", text: "DEP" }), h("div", null, h("h2", { text: "Dependencies" }),
+          h("div", { class: "sub", text: "What this machine needs" }))), h("span", { class: "tag ok", style: "margin:0", text: "READY" })),
+        h("p", { class: "sub", style: "margin:0 0 10px", text: "See what's installed and what's missing for each server type, and install it." }),
+        h("button", { onclick: () => go("#/deps") }, "Open Dependencies")),
+      h("div", { class: "card" }, h("div", { class: "top" }, h("div", { class: "row" }, h("div", { class: "gameicon", text: "…" }), h("div", null, h("h2", { text: "Coming soon" }),
+          h("div", { class: "sub", text: "On the roadmap" }))), h("span", { class: "tag", style: "margin:0", text: "SOON" })),
+        h("ul", { class: "sub", style: "margin:0;padding-left:18px;line-height:1.9" }, ["Config editor with history and rollback", "Port checker (can players reach the server?)",
+          "Player list and bans across all servers", "Rust wipe planner", "Mod and plugin manager with update alerts"].map(t => h("li", { text: t }))))));
+}
+
+// Events
+async function pageEvents() {
+  refresh = async () => {
+    await loadOverview(); renderTopbar(); let evs = []; try { evs = await api("/api/events"); } catch (e) {}
+    const names = Object.fromEntries((data.servers || []).map(s => [s.id, s.name]));
+    const list = h("div", { class: "events" });
+    for (const e of evs.slice().reverse()) list.append(h("div", { class: "ev" }, h("span", { class: "t", text: fmtUK(e.t * 1000, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) }),
+      h("span", { class: "s", text: names[e.server] || e.server }), h("span", { class: "l-" + e.level, text: e.message })));
+    if (!evs.length) list.append(h("div", { class: "empty", text: "No events yet." }));
+    view().replaceChildren(header("Events & alerts", "Everything HostSpawn noticed or did, newest first."), h("div", { class: "card" }, list));
+  };
+  await refresh(); timer = setInterval(refresh, 10000);
+}
+
+(async function boot() {
+  let st = null;
+  try { st = await (await fetch("/api/setup/status")).json(); } catch (e) {}
+  if (st && st.setup_needed) return setupWizard(0);
+  if (st && st.accounts && !st.signed_in) return signIn();
+  try { me = await api("/api/me"); } catch (e) { me = null; }
+  route();
+})();
+</script>
+</body>
+</html>

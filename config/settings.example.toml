@@ -1,0 +1,12 @@
+# Manager settings for this install. Copy to config/settings.toml (git-ignored).
+
+[community]
+# Your community or server brand. Shown on the dashboard and used for default server names.
+name = "My Community"
+
+[backups]
+# Daily backup of every server (UK time), on by default. Set enabled = false to turn it off.
+enabled = true
+time = "04:30"
+# Alert if a server's newest backup is older than this many hours.
+max_age_hours = 36

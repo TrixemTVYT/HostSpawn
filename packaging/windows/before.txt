@@ -1,0 +1,19 @@
+HostSpawn for Windows
+
+This installs the HostSpawn app on this PC. Your game servers run on a Linux server (for example a dedicated
+server or a spare Linux PC), where HostSpawn itself is installed with HostSpawn Setup for Linux. This app connects
+to it so you can run everything from Windows.
+
+Before you start, you need:
+  1. HostSpawn installed on your Linux server (see #getting-started in the HostSpawn Discord).
+  2. How you log in to that server: its address, your username and password (the same as for SSH or PuTTY).
+
+When you open the app, choose "Connect to my server", type the server's address and your username, and press the
+button. A small "HostSpawn connection" window asks for your server password. Keep it open (you can minimise it)
+while you use HostSpawn. The connection is encrypted (SSH, built into Windows) and nothing is opened to the
+internet.
+
+This installs for your Windows user only (no admin password needed) and can be removed any time in
+Settings > Apps > HostSpawn.
+
+Running HostSpawn on Windows itself (game servers on this PC) is coming later.

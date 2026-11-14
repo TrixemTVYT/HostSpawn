@@ -1,0 +1,38 @@
+# Secrets: never commit. Template: config/secrets.env.example
+config/secrets.env
+config/accounts.json
+config/secrets.env.bak*
+*.env
+!*.env.example
+
+# This machine's real server list (paths, ports). Template: config/servers.example.toml
+config/servers.toml
+config/instance.env
+config/settings.toml
+
+# Runtime state, logs, backups
+state/
+logs/
+backups/
+
+# Filled-in profiles of real servers stay with each server project
+profiles/
+
+__pycache__/
+*.pyc
+*.tmp
+
+# Servers Manager creates (game files, saves) and their settings
+servers/
+config/servers.d/
+
+# Built releases
+dist/
+
+# Backups of settings made by hand or by tools
+*.bak
+# HostSpawn Bot: private files (never commit)
+
+# release signing keys must never be committed
+*.key
+packaging/windows/terms.txt

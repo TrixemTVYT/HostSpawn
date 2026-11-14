@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Need help, not a bug? Ask in the HostSpawn Discord
+    url: https://discord.gg/AaBwz8szM
+    about: Press "Get help" in #help for a private ticket with our helpers.
+  - name: 🔒 Security problem? Don't post it publicly
+    url: https://github.com/TrixemTVYT/HostSpawn/security/advisories/new
+    about: Report it privately (see SECURITY.md).

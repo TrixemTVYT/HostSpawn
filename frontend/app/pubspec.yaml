@@ -1,0 +1,27 @@
+name: hostspawn
+description: HostSpawn - the game server manager app (talks to the HostSpawn agent).
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # The sign-in key is kept in the system keychain (Windows Credential Manager, macOS Keychain,
+  # Linux Secret Service), never in a plain file.
+  flutter_secure_storage: ^11.2.0
+  re_editor: ^0.10.0
+  re_highlight: ^0.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

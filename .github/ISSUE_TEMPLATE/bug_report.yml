@@ -1,0 +1,41 @@
+name: 🐞 Bug report
+description: Something in HostSpawn doesn't work as it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping make HostSpawn better! **Never paste passwords, RCON passwords, Steam logins, tokens or
+        your server's IP address here**: this page is public. HostSpawn's **Report a bug** button (account menu,
+        top right) copies safe details for you.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      placeholder: "I pressed Restart on my Rust instance and it stayed on Starting…"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to make it happen
+      placeholder: |
+        1. New instance → Rust
+        2. …
+  - type: textarea
+    id: details
+    attributes:
+      label: Details from HostSpawn
+      description: "Account menu → Report a bug → Copy details, then paste here. (It leaves out passwords, addresses and player names.)"
+      render: text
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else? (screenshots, the Server Doctor's message, console lines)
+      description: Blank out any passwords or addresses first.

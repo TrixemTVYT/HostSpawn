@@ -1,0 +1,31 @@
+# Manager: the game servers on this machine.
+# Copy to config/servers.toml (git-ignored) and change the paths. Times are UK time.
+# Server names default to "<community name> <game>" (community name: config/settings.toml).
+
+[servers.rust]
+name = "Rust"
+adapter = "rust"                    # wraps a rustctl.sh control script (start/stop/update/wipe with countdowns)
+root = "/home/ubuntu/Rust/server"   # folder that holds rustctl.sh
+query_port = 28017                  # A2S health check
+rcon_port = 28016                   # WebRCON health check (password: RCON_PASSWORD in <root>/config/secrets.env)
+max_players = 100
+warn_seconds = 300                  # in-game countdown before panel restarts/stops
+# live_json = "rustds/oxide/data/MyPlugin_live.json"   # optional plugin file with live Fps/MaxPlayers
+# panel_url = "http://127.0.0.1:8095"                  # optional link to another panel
+
+[servers.reforger]
+name = "Arma Reforger"
+adapter = "reforger"
+root = "/home/ubuntu/Reforger"      # project folder with Server/scripts and Server/profile
+unit = "reforger"                   # systemd service that runs it
+query_port = 17777
+max_players = 64
+
+[servers.arma3]
+name = "Arma 3"
+adapter = "arma3"
+root = "/home/ubuntu/Arma3"         # backend/games/arma3/install.sh puts steamcmd/ and server/ here
+port = 2302                         # game port; query = port + 1
+max_players = 32
+# hostname = "My Community Arma 3"  # default: "<community name> Arma 3"
+restart_times = []                  # daily restarts, e.g. ["05:30"]

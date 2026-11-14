@@ -1,0 +1,10 @@
+// Arma 3 network settings (generated from backend/games/arma3/basic.cfg.template).
+MaxMsgSend = 128;
+MaxSizeGuaranteed = 512;
+MaxSizeNonguaranteed = 256;
+MinBandwidth = 131072;
+MaxBandwidth = 10000000000;
+MinErrorToSend = 0.001;
+MinErrorToSendNear = 0.01;
+MaxCustomFileSize = 0;
+class sockets { maxPacketSize = 1400; };

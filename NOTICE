@@ -1,0 +1,21 @@
+HostSpawn by TrixemTV
+Copyright (C) 2026 TrixemTV
+
+HostSpawn is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
+License version 3 (see LICENSE), with the additional terms below, which are allowed by section 7 of that licence.
+
+Additional terms (GPL-3.0 section 7):
+
+1. Attribution (section 7(b)). Every copy and every modified version must keep the notice
+   "HostSpawn by TrixemTV" where HostSpawn shows its own name and version (the app's account menu, the
+   HostSpawn Setup welcome screen and the installers), and must keep this NOTICE file.
+
+2. Name and logo (section 7(e)). This licence does not give you any right to use the name "HostSpawn" or the
+   HostSpawn logo (docs/brand/) for anything other than unmodified copies of HostSpawn from TrixemTV. If you
+   distribute a modified version, give it a different name and logo, and say that it is based on HostSpawn by
+   TrixemTV. See TRADEMARKS.md.
+
+3. Modified versions must be marked as changed (section 7(c)), so that nobody mistakes them for the original.
+
+HostSpawn comes with ABSOLUTELY NO WARRANTY, to the extent permitted by law (see LICENSE, sections 15 and 16).
+Game server files, mods and frameworks that HostSpawn downloads belong to their owners and have their own terms.

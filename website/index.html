@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HostSpawn: set up and run game servers without the hassle</title>
+<meta name="description" content="HostSpawn sets up your Rust, Arma Reforger and Arma 3 servers for you, keeps them running, updates and backs them up. Runs on your own machine.">
+<meta name="theme-color" content="#07090d">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#"><img src="assets/logo.svg" alt="">HostSpawn</a>
+    <nav class="links">
+      <a href="#features">Features</a><a href="#games">Games</a><a href="#how">How it works</a>
+      <a href="#safety">Safety</a><a href="#roadmap">Roadmap</a><a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn small primary" href="#download">Get HostSpawn</a>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Game server manager · early access</span>
+    <h1>Spawn a game server in minutes.<br><span class="grad">Keep it running for good.</span></h1>
+    <p class="lead">HostSpawn downloads, sets up and starts your Rust, Arma Reforger and Arma 3 servers for you, then
+      watches them: crash recovery, updates, daily backups, wipes and restarts. On your own machine.</p>
+    <div class="cta">
+      <a class="btn primary" href="#download">Get HostSpawn</a>
+      <a class="btn" href="#how">See how it works</a>
+    </div>
+    <div class="note">No account with us, no subscription. Your servers and data stay on your computer.</div>
+
+    <div class="preview" aria-label="Example dashboard (illustration)">
+      <div class="bar"><i></i><i></i><i></i><span style="margin-left:auto;color:var(--dim);font-size:12px">Example dashboard</span></div>
+      <div class="body">
+        <div class="side"><span class="on">Overview</span><span>New server</span><span>Supported games</span><span>Tools</span><span>Dependencies</span><span>Events</span><span>Settings</span></div>
+        <div class="main">
+          <div class="kpis"><div class="kpi"><small>Servers online</small><b>3 / 3</b></div><div class="kpi"><small>Players now</small><b>41</b></div>
+            <div class="kpi"><small>Alerts today</small><b>0</b></div><div class="kpi"><small>Memory</small><b>14 / 32 GB</b></div></div>
+          <div class="srv">
+            <div><b>My Community Rust</b><em>● Running</em> · 38 / 100 players · 212 FPS<div class="dots"><span>Process</span><span>Query</span><span>RCON</span><span>Backup 6 h ago</span></div></div>
+            <div><b>My Community Conflict</b><em>● Running</em> · 3 / 32 players · 60 FPS<div class="dots"><span>Process</span><span>Query</span><span>Log</span><span>Backup 6 h ago</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features" class="alt">
+  <div class="wrap">
+    <div class="head"><span class="eyebrow">Features</span><h2>Everything a server owner does by hand, done for you</h2>
+      <p>Built by a server owner, for server owners. No command line needed.</p></div>
+    <div class="grid">
+      <div class="card"><div class="icon">01</div><h3>One-click setup</h3><p>Pick a game, a server type and a map, press Deploy. HostSpawn downloads the server, writes its settings, picks free ports and starts it, with a live progress screen.</p></div>
+      <div class="card"><div class="icon">02</div><h3>Crash and freeze recovery</h3><p>Checks every server every minute: process, server-list query, RCON and log activity. Restarts crashed or frozen servers, and stops retrying (with an alert) if something is badly wrong.</p></div>
+      <div class="card"><div class="icon">03</div><h3>Updates with retries</h3><p>Game updates through Valve's SteamCMD, retried when Steam has a bad moment. Steam login problems are flagged, never retried until the account locks.</p></div>
+      <div class="card"><div class="icon">04</div><h3>Backups on by default</h3><p>Every server is backed up daily, including databases. You get a warning if a backup is missing or too old. Every wipe and delete makes a backup first.</p></div>
+      <div class="card"><div class="icon">05</div><h3>Wipes, restarts, rotation</h3><p>Rust wipe schedules (monthly, bi-weekly, weekly) around Facepunch's forced wipe. Recommended restart schedules for each game. Map rotation for Arma Reforger.</p></div>
+      <div class="card"><div class="icon">06</div><h3>Guided steps</h3><p>When something needs you (a Steam login, opening firewall ports, installing a database), HostSpawn shows exactly what to do, then checks it worked.</p></div>
+      <div class="card"><div class="icon">07</div><h3>Team accounts</h3><p>Invite your staff as Admins, Moderators (run servers) or Viewers (look only). Every action records who did it.</p></div>
+      <div class="card"><div class="icon">08</div><h3>Tools built in</h3><p>A PBO manager for Arma files, a dependencies checker with install buttons, RCON console for Rust, and live logs.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="games">
+  <div class="wrap">
+    <div class="head"><span class="eyebrow">Supported games</span><h2>Ready today</h2>
+      <p>Each game has its own server types. More games are on the way.</p></div>
+    <div class="games">
+      <div class="game"><div class="top"><div class="icon">AR</div><div><h3>Arma Reforger</h3><span class="tag ok">READY</span><span class="tag">NO ACCOUNT NEEDED</span></div></div>
+        <ul class="modes"><li>Conflict<span>6 maps</span></li><li>Game Master<span>3 maps</span></li><li>Combat Ops<span>2 maps</span></li><li>Capture &amp; Hold<span>8 maps</span></li><li>Map rotation<span>at every restart</span></li></ul></div>
+      <div class="game"><div class="top"><div class="icon">RS</div><div><h3>Rust</h3><span class="tag ok">READY</span><span class="tag">NO ACCOUNT NEEDED</span></div></div>
+        <ul class="modes"><li>Rust<span>vanilla</span></li><li>Oxide (uMod) plugins<span>one click, any time</span></li><li>Wipe schedules<span>monthly · bi-weekly · weekly</span></li><li>RCON console and health check<span>built in</span></li></ul></div>
+      <div class="game"><div class="top"><div class="icon">A3</div><div><h3>Arma 3</h3><span class="tag ok">READY</span><span class="tag">STEAM LOGIN</span></div></div>
+        <ul class="modes"><li>Vanilla<span>official missions</span></li><li>KP Liberation<span>pick a release and map</span></li><li>Altis Life (AsYetUntitled)<span>guided database setup</span></li></ul></div>
+    </div>
+    <p class="soonrow"><span class="tag soon">COMING</span> DayZ · Valheim · Project Zomboid · A3Wasteland · Antistasi · Carbon for Rust</p>
+  </div>
+</section>
+
+<section id="how" class="alt">
+  <div class="wrap">
+    <div class="head"><span class="eyebrow">How it works</span><h2>From nothing to a live server</h2></div>
+    <div class="steps">
+      <div class="step"><h3>Install HostSpawn</h3><p>A first-run wizard creates your owner account, asks your community name and checks what your machine needs.</p></div>
+      <div class="step"><h3>Pick a game and type</h3><p>Choose a game, a server type and a map. Recommended restarts and wipes are filled in for you.</p></div>
+      <div class="step"><h3>Press Deploy</h3><p>Watch every step live: download, settings, first start. HostSpawn waits until the server really answers.</p></div>
+      <div class="step"><h3>Play</h3><p>Open the ports (HostSpawn shows you how), share the address, and let HostSpawn look after the rest.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="safety">
+  <div class="wrap">
+    <div class="head"><span class="eyebrow">Safety first</span><h2>Built to be trusted with your servers</h2>
+      <p>Your servers, your machine, your data. Safety comes before features.</p></div>
+    <ul class="checks">
+      <li><b>Passwords are never stored</b>Only a slow, salted fingerprint (scrypt). Sign-in tokens are fingerprinted too.</li>
+      <li><b>Your Steam password stays yours</b>Typed straight into Valve's SteamCMD, never saved, logged or shown.</li>
+      <li><b>Locked against guessing</b>Too many wrong passwords lock the account for a while, doubling each time.</li>
+      <li><b>Private by default</b>The dashboard only listens on your own machine. Nothing is sent to us.</li>
+      <li><b>Backups before anything risky</b>Wipes, deletes and updates make a backup first.</li>
+      <li><b>No surprises</b>Risky actions ask you to type the action's name. A double-click can't do anything twice.</li>
+      <li><b>Official sources only</b>Games from Steam, Oxide from its official release, mods from their own projects.</li>
+      <li><b>Roles for your team</b>Moderators can run servers but can't delete, wipe or change settings.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="roadmap" class="alt">
+  <div class="wrap">
+    <div class="head"><span class="eyebrow">Roadmap</span><h2>Where HostSpawn is going</h2></div>
+    <div class="road">
+      <div><b class="done">DONE</b>Setup wizard, accounts and roles, one-click servers, crash recovery, backups, wipes, map rotation, RCON for Rust</div>
+      <div><b class="next">NEXT</b>File browser and config editor, mod picker with update alerts</div>
+      <div><b class="next">NEXT</b>Desktop app and a signed installer for Windows and Linux</div>
+      <div><b class="later">LATER</b>Windows hosting (Windows 10/11 and Windows Server), more games, Discord and phone alerts</div>
+      <div><b class="later">LATER</b>Player tools: one player list and bans across all your servers</div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <div class="head"><span class="eyebrow">FAQ</span><h2>Questions</h2></div>
+    <div class="faq">
+      <details><summary>Does HostSpawn host my server?</summary><p>No. HostSpawn runs your servers on a computer you control: your own PC, a dedicated server or a VPS. That keeps your files and players' data with you.</p></details>
+      <details><summary>Which operating systems does it support?</summary><p>Linux (Ubuntu and Debian) today. Windows 10/11 and Windows Server are on the roadmap. The games themselves only make servers for Windows and Linux, so a Mac can run the app but not host servers.</p></details>
+      <details><summary>Do I need a Steam account?</summary><p>Not for Rust or Arma Reforger. Arma 3's server download needs a Steam account (it doesn't have to own Arma 3). A separate account just for servers is best.</p></details>
+      <details><summary>Will it keep my server up if it crashes?</summary><p>Yes. HostSpawn checks every minute and restarts a crashed or frozen server. If a server keeps failing it stops, tells you, and shows the last log lines, instead of looping forever.</p></details>
+      <details><summary>Can I still edit my server's files myself?</summary><p>Yes. Each server lives in its own folder that you can open and edit. A built-in file browser and config editor are coming next.</p></details>
+      <details><summary>Is it free?</summary><p>HostSpawn is in early access. Pricing hasn't been decided yet; anything you set up during early access stays yours.</p></details>
+    </div>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap">
+    <div class="download">
+      <span class="eyebrow">Early access</span>
+      <h2 style="font-size:clamp(28px,4vw,40px);margin:14px 0 8px;letter-spacing:-.8px">Get HostSpawn</h2>
+      <p style="color:var(--muted);margin:0 auto;max-width:560px">The signed installer is being built. Downloads appear here when it's ready.</p>
+      <div class="os">
+        <div><b>Linux</b><span>Ubuntu 22.04+ · Debian 12+ · coming soon</span></div>
+        <div><b>Windows</b><span>Windows 10/11 · Windows Server · coming soon</span></div>
+        <div><b>macOS</b><span>App only (controls servers elsewhere) · later</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© <span id="y">2026</span> HostSpawn</span>
+    <nav><a href="https://discord.gg/AaBwz8szM" rel="noopener">Discord</a><a href="terms.html">Terms</a><a href="privacy.html">Privacy</a><a href="#faq">FAQ</a></nav>
+  </div>
+</footer>
+<script>
+document.getElementById("y").textContent = new Date().getFullYear();
+(function () {
+  var calm = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Slide sections and cards in as they come into view, one after another.
+  var sel = ".head, .card, .game, .step, .checks li, .road > div, details, .download, .soonrow";
+  if ("IntersectionObserver" in window && !calm) {
+    document.documentElement.classList.add("js");
+    var groups = new Map();
+    document.querySelectorAll(sel).forEach(function (el) {
+      var k = el.parentElement; var i = groups.get(k) || 0; groups.set(k, i + 1);
+      el.classList.add("reveal"); el.style.setProperty("--d", Math.min(i, 6) * 0.07 + "s");
+    });
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }); },
+      { rootMargin: "0px 0px -8% 0px" });
+    document.querySelectorAll(".reveal").forEach(function (el) { io.observe(el); });
+  }
+  // The example dashboard ticks like a real server (it's an illustration, labelled "Example dashboard").
+  if (calm) return;
+  var b = document.querySelectorAll(".preview .kpi b"), srv = document.querySelectorAll(".preview .srv > div");
+  var players = 38, fps = 212;
+  setInterval(function () {
+    players = Math.max(30, Math.min(48, players + Math.round(Math.random() * 4 - 2)));
+    fps = Math.max(196, Math.min(228, fps + Math.round(Math.random() * 10 - 5)));
+    if (b[1]) b[1].textContent = String(players + 3);
+    if (srv[0]) srv[0].childNodes[2].textContent = " · " + players + " / 100 players · " + fps + " FPS";
+  }, 2200);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+# HostSpawn for Windows: builds the app on a Windows machine, runs its tests there, and makes the installer
+# (HostSpawn-Setup-<version>-windows-x64.exe, Inno Setup). The Windows app is "coming soon" (not yet proven against a
+# real server), so this only runs by hand: Actions tab → Run workflow. The installer is kept as a build artifact.
+name: Windows build
+on:
+  workflow_dispatch:
+permissions:
+  contents: write   # only to attach the installer to the release of a pushed tag
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.47.9"
+          cache: true
+      - name: Tests (on Windows)
+        working-directory: frontend/app
+        run: flutter test
+      - name: Build the app
+        working-directory: frontend/app
+        run: flutter build windows --release
+      - name: Make the installer
+        shell: pwsh
+        run: |
+          $v = (Get-Content VERSION -Raw).Trim()
+          Copy-Item docs/TERMS_DRAFT.md packaging/windows/terms.txt
+          choco install innosetup -y --no-progress
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\iscc.exe" "/DVersion=$v" packaging/windows/hostspawn.iss
+          Get-FileHash "dist/HostSpawn-Setup-$v-windows-x64.exe" -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  HostSpawn-Setup-$v-windows-x64.exe" } | Out-File -Encoding ascii "dist/SHA256SUMS-windows"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hostspawn-windows
+          path: |
+            dist/HostSpawn-Setup-*-windows-x64.exe
+            dist/SHA256SUMS-windows
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.ref_name }}" (Get-ChildItem dist/HostSpawn-Setup-*-windows-x64.exe).FullName dist/SHA256SUMS-windows --clobber
