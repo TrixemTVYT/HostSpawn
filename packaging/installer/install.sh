@@ -137,6 +137,7 @@ rm -rf "$PREFIX/manager_app.py"; for d in manager web games desktop installer; d
 for d in backend frontend packaging docs; do rm -rf "$PREFIX/$d"; cp -r "$SRC/$d" "$PREFIX/$d"; done
 if [ -d "$SRC/app" ]; then rm -rf "$PREFIX/app"; cp -r "$SRC/app" "$PREFIX/app"; chmod +x "$PREFIX/app/hostspawn"; fi
 cp "$SRC/manager.sh" "$SRC/README.md" "$SRC/VERSION" "$PREFIX/"
+for f in LICENSE NOTICE TRADEMARKS.md; do [ -f "$SRC/$f" ] && cp "$SRC/$f" "$PREFIX/"; done   # the licence and the "HostSpawn by TrixemTV" notice
 mkdir -p "$PREFIX/config" "$PREFIX/state" "$PREFIX/logs"
 cp "$SRC"/config/*.example* "$PREFIX/config/"
 [ -f "$PREFIX/config/servers.toml" ] || printf '# Servers set up by hand (git-ignored). Servers HostSpawn creates are in config/servers.d/.\n' > "$PREFIX/config/servers.toml"

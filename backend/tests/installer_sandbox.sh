@@ -84,6 +84,7 @@ check "secrets private (600) and config folder 700" "[ \$(stat -c %a '$PREFIX/co
 check "terms acceptance recorded" "grep -q 'accepted_by = \"installer\"' '$PREFIX/config/settings.toml'"
 check "systemd user service written and enabled" "grep -q 'ExecStart=/usr/bin/env python3 -I $PREFIX/backend/manager_app.py serve' '$SB/home/.config/systemd/user/hostspawn.service' && grep -q 'enable --now hostspawn.service' '$SB/systemctl.calls'"
 check "app menu and desktop icons open the app on its port" "[ -x '$SB/home/.local/share/applications/hostspawn.desktop' ] && grep -q 'Exec=env HOSTSPAWN_AGENT=http://127.0.0.1:$PORT $PREFIX/app/hostspawn' '$SB/home/Desktop/hostspawn.desktop'"
+check "licence and TrixemTV notice installed" "[ -f '$PREFIX/LICENSE' ] && grep -q 'HostSpawn by TrixemTV' '$PREFIX/NOTICE'"
 check "no tests or private files shipped" "[ ! -e '$PREFIX/tests' ] && [ ! -e '$PREFIX/config/accounts.json' ]"
 
 # 4. the installed app really runs and shows the setup wizard

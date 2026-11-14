@@ -64,6 +64,7 @@ if [ "$REMOVE_DATA" = 1 ]; then
   echo "HostSpawn and all its data were removed."
 else
   for d in backend frontend packaging docs app manager web games desktop installer; do rm -rf "$PREFIX/$d"; done
+  rm -f "$PREFIX/LICENSE" "$PREFIX/NOTICE" "$PREFIX/TRADEMARKS.md"
   rm -f "$PREFIX/manager_app.py" "$PREFIX/manager.sh" "$PREFIX/README.md" "$PREFIX/VERSION"
   printf 'HostSpawn was uninstalled; your data is kept here. Reinstall to use it again.\n' > "$PREFIX/KEPT-DATA.txt"
   echo "HostSpawn was removed. Your data (settings, accounts, servers, backups) is kept in $PREFIX."
