@@ -181,6 +181,10 @@ class Api {
     return ((j as Map)['job'] as Map?)?.cast<String, dynamic>() ?? {};
   }
 
+  /// HostSpawn's own settings (time zone, community, backups).
+  Future<Map<String, dynamic>> appSettings() async => await get('settings') as Map<String, dynamic>;
+  Future<void> saveAppSettings(Map<String, dynamic> changes) async => await post('settings', changes);
+
   Future<String> saveSettings(String server, Map<String, dynamic> changes) async {
     final j = await post('server/settings', {'server': server, ...changes});
     return (j as Map)['message'] as String? ?? 'Saved';

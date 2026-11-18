@@ -51,6 +51,12 @@ def install_oxide(server_dir, url=OXIDE_URL) -> str:
     return f"Oxide installed ({len(data) // 1024} KB)"
 
 
+
+def _zone() -> str:
+    """The chosen time zone's short name, e.g. GMT or CET (shown in the server browser description)."""
+    from ..util import local_now
+    return local_now().strftime("%Z")
+
 class RustServer(RustRcon, ManagedServer):
     game = "Rust"
     slug = "rust"
@@ -108,7 +114,7 @@ class RustServer(RustRcon, ManagedServer):
         wipe = {"monthly": "Wipes monthly", "biweekly": "Wipes every two weeks", "weekly": "Wipes weekly"}.get(
             self.cfg.get("wipe_mode", "monthly"))
         if wipe and "wipe" not in desc.lower():
-            desc += f"\\n{wipe} (Thursdays, {self.cfg.get('wipe_time', '20:00')} UK)."  # \n = new line in Rust
+            desc += f"\\n{wipe} (Thursdays, {self.cfg.get('wipe_time', '20:00')} {_zone()})."  # \n = new line in Rust
         lines = [
             "// " + "=" * 74,
             f"//  {name}",
@@ -160,19 +166,19 @@ class RustServer(RustRcon, ManagedServer):
                 "update": self.cfg.get("wipe_update", True), "warn_s": int(self.cfg.get("wipe_warn_s", 300))}
 
     def wipe_due(self, when) -> str | None:
-        """Kind of wipe due exactly at this UK minute, or None."""
+        """Kind of wipe due exactly at this minute (in the chosen time zone), or None."""
         w = self.wipe_settings()
         return wipe_kind_on(when.date(), w["mode"], w["bp"]) if f"{when:%H:%M}" == w["time"] else None
 
     def next_wipes(self, n: int = 3) -> list[dict]:
         from datetime import datetime, timedelta
-        from ..util import UK
-        w, now, out = self.wipe_settings(), datetime.now(UK), []
+        from ..util import tz
+        w, now, out = self.wipe_settings(), datetime.now(tz()), []
         h, m = map(int, w["time"].split(":"))
         for i in range(0, 120):
             d = (now + timedelta(days=i)).date()
             kind = wipe_kind_on(d, w["mode"], w["bp"])
-            when = datetime(d.year, d.month, d.day, h, m, tzinfo=UK)
+            when = datetime(d.year, d.month, d.day, h, m, tzinfo=tz())
             if kind and when > now:
                 out.append({"when": when.isoformat(), "what": "full wipe (map + blueprints)" if kind == "full" else "map wipe",
                             "kind": kind, "forced": d.day <= 7})
@@ -194,7 +200,11 @@ class RustServer(RustRcon, ManagedServer):
             if was_running and warn:
                 self.countdown(w["warn_s"], what="wipe")
             self._stop(maintenance=False)
-            backup = self.backup()  # always before deleting anything
+            try:
+                backup = self._backup()  # always before deleting anything (wipe already holds the lock)
+            except Exception:
+                self._start_again(was_running, "wipe backup failed")
+                raise
             removed = 0
             for pat in WIPE_MAP + (WIPE_BLUEPRINTS if kind == "full" else ()):
                 for f in self.identity_dir.glob(pat):
@@ -223,7 +233,11 @@ class RustServer(RustRcon, ManagedServer):
             was_running = bool(self.pid())
             if was_running:
                 self._stop(maintenance=False)
-            msg = install_oxide(self.server_dir)
+            try:
+                msg = install_oxide(self.server_dir)
+            except Exception:
+                self._start_again(was_running, "Oxide installation failed")
+                raise
             first = self.cfg.get("framework") != "oxide"
             if first:
                 self.cfg["framework"] = "oxide"  # later game updates reinstall it
@@ -232,6 +246,16 @@ class RustServer(RustRcon, ManagedServer):
             if was_running:
                 self._start()
             return f"{msg}{'; server is now modded' if first else ''}{'; restarted' if was_running else ''}"
+
+    def _start_again(self, was_running: bool, what: str) -> None:
+        """After a failed wipe or Oxide install nothing was deleted: bring the server back rather than leave it off."""
+        if not was_running:
+            return
+        try:
+            self._start()
+        except Exception as e:
+            from ..util import add_event
+            add_event(self.id, "alert", f"{what}; starting the server again also failed: {e}")
 
     def send(self, command):
         from ..util import clean_command

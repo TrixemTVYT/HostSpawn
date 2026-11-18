@@ -12,6 +12,7 @@ import 'new_server.dart';
 import 'pc_check.dart';
 import 'players.dart';
 import 'setup_job.dart';
+import 'time_zone.dart';
 import 'server.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -151,6 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
               'out' => widget.signOut(),
               'theme' => pickTheme(context),
               'discord' => showDiscord(context),
+              'timezone' => showTimeZone(context, widget.api, widget.me.isAdmin),
               'bug' => showBugReport(
                   context, widget.version, (data?['servers'] as List?)?.cast<Map<String, dynamic>>() ?? const []),
               'pccheck' => Navigator.push(context, MaterialPageRoute(builder: (_) => PcCheckScreen(api: widget.api))),
@@ -190,6 +192,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       contentPadding: EdgeInsets.zero,
                       leading: Icon(Icons.forum_outlined),
                       title: Text('Help and updates on Discord'))),
+              const PopupMenuItem(
+                  value: 'timezone',
+                  child: ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.schedule_outlined),
+                      title: Text('Time zone'))),
               const PopupMenuItem(
                   value: 'bug',
                   child: ListTile(

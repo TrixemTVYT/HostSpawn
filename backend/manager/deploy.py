@@ -138,22 +138,28 @@ def port_free(port: int) -> bool:
     return True
 
 
-def allocate_ports(game: str, servers: dict | None = None) -> dict:
-    """Free ports for a new server, away from every configured server and anything already listening."""
+PRACTICE_OFFSET = 10000  # practice (sandbox) servers: far from every game's standard ports
+
+
+def allocate_ports(game: str, servers: dict | None = None, practice: bool = False) -> dict:
+    """Free ports for a new server, away from every configured server and anything already listening.
+    Practice servers start 10000 higher, so a pretend game can never take the ports a real server uses, even while
+    that real server is stopped (a sandbox once held 28016/28017 and a live Rust server couldn't start)."""
     used = _used_ports(load_servers() if servers is None else servers)
     ok = lambda ps: all(p not in used and 1024 < p < 65535 and port_free(p) for p in ps)
+    off = PRACTICE_OFFSET if practice else 0
     if game == "rust":
-        for base in range(28015, 60000, 100):
+        for base in range(28015 + off, 60000, 100):
             if ok([base, base + 1, base + 2]):
                 return {"port": base, "rcon_port": base + 1, "query_port": base + 2}
     if game == "arma3":
-        for base in range(2302, 60000, 100):
+        for base in range(2302 + off, 60000, 100):
             if ok([*range(base, base + 5), base + 7]):  # game, query, Steam, VON, BattlEye; RCon on +7
                 return {"port": base, "rcon_port": base + 7}
     if game == "reforger":
         out = {}
         for key, start in (("port", 2001), ("query_port", 17777), ("rcon_port", 19999)):
-            p = start
+            p = start + off
             while not ok([p]) or p in out.values():
                 p += 1
             out[key] = p
@@ -431,7 +437,7 @@ class Deployer:
             if not re.fullmatch(r"[A-Za-z0-9_.@-]{2,64}", user):
                 raise ValueError("Enter the Steam username for the server's download account")
             set_secret(f"SRV_{sid.upper().replace('-', '_')}_STEAM_USER", user)
-        ports = allocate_ports(game)
+        ports = allocate_ports(game, practice=bool(os.environ.get("MANAGER_TEST_STEAMCMD")))
         root = servers_dir() / game / folder_name(name, sid)
         steps = self._steps(game, mode)
         d = {"id": _rand.token_hex(6), "server_id": sid, "game": game, "mode": mode, "name": name,

@@ -20,7 +20,7 @@ checks every file against the release's checksums before installing. It only ask
 system packages (for example `tmux`), and shows you which ones first.
 
 **Update:** download the new Setup and run it the same way. Your settings, instances, players and backups are kept,
-and your game servers keep running. New versions are posted in #announcements in the HostSpawn Discord.
+and your game servers keep running. New versions and fixes are posted in #updates in the HostSpawn Discord.
 
 **Uninstall:** `~/.local/share/hostspawn/packaging/installer/uninstall.sh` (it keeps your servers and backups unless
 you add `--remove-data`).

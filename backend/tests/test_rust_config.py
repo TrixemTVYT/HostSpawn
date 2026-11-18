@@ -4,6 +4,7 @@ import json
 import threading
 
 from manager import accounts as A
+from manager import util
 from manager.adapters.rust_server import RustServer
 from manager.supervisor import Supervisor
 from manager.web import make_handler
@@ -24,7 +25,7 @@ class TestServerCfg(Sandbox):
                      'server.headerimage "https://example.com/banner.png"', 'server.tags "monthly,vanilla,EU"',
                      "server.pve false", "server.globalchat true", "// --- Identity"):
             self.assertIn(line, t)
-        self.assertIn("Wipes monthly (Thursdays, 20:00 UK).", t)  # the wipe schedule goes in the description
+        self.assertIn(f"Wipes monthly (Thursdays, 20:00 {util.local_now():%Z}).", t)  # the wipe schedule goes in the description
         self.assertNotIn("server.logoimage", t)  # not set: left out
         for line in t.splitlines():  # comments only on their own lines (Rust reads one command per line)
             self.assertTrue(line == "" or line.startswith("//") or "//" not in line.split('"')[0], line)

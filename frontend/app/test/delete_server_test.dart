@@ -58,39 +58,33 @@ Future<void> open(WidgetTester t, Api api, Me me) async {
 void main() {
   final admin = Me('owner', 'admin', null), viewer = Me('v', 'viewer', null);
 
-  testWidgets('admin deletes a HostSpawn server after typing its name; backups kept by default', (t) async {
+  testWidgets('admin deletes a HostSpawn server after one clear question; backups kept by default', (t) async {
     final api = FakeApi(deletable: true);
     await open(t, api, admin);
     await t.tap(find.text('Delete…'));
     await t.pumpAndSettle();
-    final button = find.widgetWithText(FilledButton, 'Delete instance');
-    expect(t.widget<FilledButton>(button).onPressed, isNull);
-    await t.enterText(find.byType(TextField), 'my rust'); // must match exactly
-    await t.pump();
-    expect(t.widget<FilledButton>(button).onPressed, isNull);
-    await t.enterText(find.byType(TextField), 'My Rust');
-    await t.pump();
-    await t.tap(button);
+    expect(find.text('Are you sure you want to delete everything?'), findsOneWidget);
+    expect(find.byType(TextField), findsNothing); // no typing needed
+    await t.tap(find.widgetWithText(FilledButton, 'Yes, delete everything'));
     await t.pumpAndSettle();
     expect(api.deleted, [('rust-1', 'My Rust', true)]);
     expect(find.byType(ServerScreen), findsNothing); // back to the dashboard
     expect(find.text('My Rust: deleted'), findsOneWidget);
   });
 
-  testWidgets('untick Keep its backups; Cancel deletes nothing', (t) async {
+  testWidgets('untick Keep its backups; No, keep it deletes nothing', (t) async {
     final api = FakeApi(deletable: true);
     await open(t, api, admin);
     await t.tap(find.text('Delete…'));
     await t.pumpAndSettle();
-    await t.tap(find.text('Cancel'));
+    await t.tap(find.text('No, keep it'));
     await t.pumpAndSettle();
     expect(api.deleted, isEmpty);
     await t.tap(find.text('Delete…'));
     await t.pumpAndSettle();
     await t.tap(find.text('Keep its backups'));
-    await t.enterText(find.byType(TextField), 'My Rust');
     await t.pump();
-    await t.tap(find.widgetWithText(FilledButton, 'Delete instance'));
+    await t.tap(find.widgetWithText(FilledButton, 'Yes, delete everything'));
     await t.pumpAndSettle();
     expect(api.deleted, [('rust-1', 'My Rust', false)]);
   });
@@ -104,6 +98,6 @@ void main() {
   testWidgets('viewers do not see Delete at all', (t) async {
     await open(t, FakeApi(deletable: true), viewer);
     expect(find.text('Delete'), findsNothing);
-    expect(find.text('Delete instance'), findsNothing);
+    expect(find.text('Yes, delete everything'), findsNothing);
   });
 }

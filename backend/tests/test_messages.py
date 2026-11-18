@@ -74,7 +74,7 @@ class TestScheduledRestart(Instant):
         self.assertTrue(self.wait(lambda: a.updates))
         self.assertEqual(len(a.updates), 1)
         self.assertEqual(a.said[0], "Server restart in 5 minutes.")
-        self.assertTrue(any(f"at {at:%H:%M} UK: countdown started" in e["message"] for e in util.read_events()))
+        self.assertTrue(any(f"at {at:%H:%M %Z}: countdown started" in e["message"] for e in util.read_events()))
 
     def test_restart_set_inside_the_warning_time_still_happens(self):
         at = util.uk_now() + timedelta(minutes=2)  # less than the 5-minute countdown away (the e2e sandbox caught this)

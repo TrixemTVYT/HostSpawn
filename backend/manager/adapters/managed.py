@@ -12,7 +12,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
-from ..util import UK, add_event, newest, run, secrets, tail
+from ..util import add_event, newest, run, secrets, tail, tz, unique_path
 from .base import Adapter, next_daily, proc_info
 
 # SteamCMD output that means a human has to log in again. Retrying would only lock the account.
@@ -82,7 +82,7 @@ class ManagedServer(Adapter):
 
     def console_log(self) -> Path:
         """Where this start's console output goes (tmux pipes stdout/stderr here)."""
-        return self.log_dir / f"{self.slug}_{datetime.now(UK):%Y-%m-%d_%H%M}.log"
+        return self.log_dir / f"{self.slug}_{datetime.now(tz()):%Y-%m-%d_%H%M}.log"
 
     def steam_user(self) -> str:
         return secrets().get(self.steam_user_key, "") if self.steam_user_key else "anonymous"
@@ -276,23 +276,39 @@ class ManagedServer(Adapter):
         """Runs before the archive is made (e.g. dump a database into a folder that gets backed up)."""
 
     def backup(self) -> str:
+        """Waits its turn: never runs during an update, restart or wipe."""
+        with self.lock("backup"):
+            return self._backup()
+
+    def _backup(self) -> str:
+        """For actions that already hold the lock (wipe, install)."""
         try:
             self.pre_backup()
         except Exception as e:
             add_event(self.id, "warn", f"backup: database dump failed ({e}); files are still backed up")
         dest = self.root / "backups"
         dest.mkdir(parents=True, exist_ok=True)
-        out = dest / f"{self.slug}_{datetime.now(UK):%Y-%m-%d_%H%M%S}.tar.gz"
-        with tarfile.open(out, "w:gz") as tar:
-            skip = set(self.backup_exclude)
-            for p in self.backup_paths():
-                if p.exists():
-                    tar.add(p, arcname=p.name,
-                            filter=lambda t: None if skip & set(Path(t.name).parts[1:2]) else t)
-        os.chmod(out, 0o600)  # may contain configs with passwords
-        for old in sorted(dest.glob(f"{self.slug}_*.tar.gz"))[:-int(self.cfg.get("keep_backups", 14))]:
+        out = unique_path(dest / f"{self.slug}_{datetime.now(tz()):%Y-%m-%d_%H%M%S}.tar.gz")  # never replaces one
+        # Written under a hidden name and renamed once complete: a half-written archive never counts as a backup.
+        partial = dest / f".{out.name}.partial"
+        try:
+            with partial.open("xb") as stream:
+                os.fchmod(stream.fileno(), 0o600)  # may contain configs with passwords
+                with tarfile.open(fileobj=stream, mode="w:gz") as tar:
+                    skip = set(self.backup_exclude)
+                    for p in self.backup_paths():
+                        if p.exists():
+                            tar.add(p, arcname=p.name,
+                                    filter=lambda t: None if skip & set(Path(t.name).parts[1:2]) else t)
+                stream.flush()
+                os.fsync(stream.fileno())
+            partial.replace(out)
+        finally:
+            partial.unlink(missing_ok=True)
+        keep = max(1, int(self.cfg.get("keep_backups", 14)))
+        for old in sorted(dest.glob(f"{self.slug}_*.tar.gz"), key=lambda p: p.stat().st_mtime)[:-keep]:
             old.unlink()
-        return f"backup written: {out.name} (keeps {int(self.cfg.get('keep_backups', 14))})"
+        return f"backup written: {out.name} (keeps {keep})"
 
     # ---- status / logs / schedule ----
     def status(self) -> dict:

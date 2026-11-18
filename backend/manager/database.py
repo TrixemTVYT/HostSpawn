@@ -17,7 +17,7 @@ from contextlib import closing
 from pathlib import Path
 
 from .adapters.managed import ManagedServer
-from .util import add_event, redact
+from .util import add_event, redact, unique_path
 
 PAGE_ROWS = 50
 MAX_ROWS = 500
@@ -154,7 +154,7 @@ class Sqlite:
         return "?", [v]
 
     def backup(self, dest: Path) -> Path:
-        out = dest / f"{self.path.stem}_{time.strftime('%Y%m%d-%H%M%S')}.sqlite"
+        out = unique_path(dest / f"{self.path.stem}_{time.strftime('%Y%m%d-%H%M%S')}.sqlite")
         src, dst = sqlite3.connect(self.path, timeout=5), sqlite3.connect(out)
         try:
             src.backup(dst)
@@ -262,7 +262,7 @@ class MariaDb:
         exe = shutil.which("mysqldump") or shutil.which("mariadb-dump")
         if not exe:
             raise DbError("Can't back up first: mysqldump isn't installed, so nothing was changed.")
-        out = dest / f"{self.db}_{time.strftime('%Y%m%d-%H%M%S')}.sql"
+        out = unique_path(dest / f"{self.db}_{time.strftime('%Y%m%d-%H%M%S')}.sql")
         with open(out, "w") as f:
             os.chmod(out, 0o600)
             p = subprocess.run([exe, f"--defaults-extra-file={self.cnf}", "--single-transaction", self.db],

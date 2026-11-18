@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from .. import a2s
-from ..util import STATE, UK
+from ..util import STATE, tz
 
 
 class Unsupported(Exception):
@@ -74,7 +74,7 @@ class Adapter:
         return {}
 
     def schedule(self) -> list[dict]:
-        """Upcoming events: [{"when": iso UK time, "what": text}]"""
+        """Upcoming events: [{"when": iso time in the chosen time zone, "what": text}]"""
         return []
 
     # ---- health: 4 checks (process via status(), query, RCON, log activity) ----
@@ -198,7 +198,7 @@ def proc_info(pid: int) -> dict:
 
 
 def next_daily(times: list[str], days: int = 2) -> list[dict]:
-    now = datetime.now(UK)
+    now = datetime.now(tz())
     out = []
     for d in range(days + 1):
         day = now.date() + timedelta(days=d)
@@ -207,7 +207,7 @@ def next_daily(times: list[str], days: int = 2) -> list[dict]:
                 h, m = map(int, t.split(":"))
             except ValueError:
                 continue
-            when = datetime(day.year, day.month, day.day, h, m, tzinfo=UK)
+            when = datetime(day.year, day.month, day.day, h, m, tzinfo=tz())
             if when > now:
                 out.append(when)
     return [{"when": w.isoformat(), "what": "restart"} for w in sorted(out)[:2]]

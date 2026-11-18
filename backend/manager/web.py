@@ -48,6 +48,11 @@ def host_stats() -> dict:
             "swap_total_mb": mem.get("SwapTotal"), "disk_free_gb": du.free // 2**30, "disk_total_gb": du.total // 2**30}
 
 
+def _tzname() -> str:
+    from .util import timezone_name
+    return timezone_name()
+
+
 def make_handler(sup, password: str, mode: str = "dev", allowed_hosts: list[str] | None = None, deployer=None,
                  accounts=None):
     """accounts=None: the older single shared password (HTTP basic auth). With accounts: sign-in with sessions."""
@@ -91,6 +96,7 @@ def make_handler(sup, password: str, mode: str = "dev", allowed_hosts: list[str]
                                                        "messages", "restart_warn_s", "countdown_message", *RUST_TEXT, *RUST_FLAGS, "region")}
                             | ({"battleye": a.cfg.get("battleye") is not False} if getattr(a, "is_arma3", False) else {}),
                 "can_say": a.can_say(),
+                "timezone": _tzname(),  # schedule times in Settings are in this zone
                 "rotation": a.rotation() if hasattr(a, "rotation") else None,
                 "wipes": (a.wipe_settings() | {"world_size": a.cfg.get("wipe_world_size") or 0, "next": a.next_wipes(4)})
                          if hasattr(a, "wipe_due") else None,
@@ -336,8 +342,13 @@ def make_handler(sup, password: str, mode: str = "dev", allowed_hosts: list[str]
                 return self.send(200, s.public() if s else {"state": "none"})
             if u.path == "/api/settings":
                 cfg = settings()
+                from zoneinfo import available_timezones
+                from .util import system_timezone, timezone_name
                 return self.send(200, {"community": community(), "backups": sup.backups, "mode": mode,
-                                       "interval": sup.interval, "servers_dir": str(cfg.get("paths", {}).get("servers", ""))})
+                                       "interval": sup.interval, "servers_dir": str(cfg.get("paths", {}).get("servers", "")),
+                                       "timezone": timezone_name(), "system_timezone": system_timezone(),
+                                       "timezones": sorted(z for z in available_timezones() if "/" in z
+                                                           and not z.startswith(("Etc/", "SystemV/", "posix/", "right/")))})
             if u.path == "/api/catalog":
                 return self.send(200, catalog.public_catalog())
             if u.path == "/api/terms":
@@ -575,6 +586,12 @@ def make_handler(sup, password: str, mode: str = "dev", allowed_hosts: list[str]
                     if not name:
                         errs.append("Community name can't be empty")
                     ch["community"] = {"name": name}
+                if "timezone" in body:  # restarts, backups and wipes use it
+                    from .util import valid_timezone
+                    tzn = str(body["timezone"]).strip()
+                    if not valid_timezone(tzn):
+                        errs.append("Unknown time zone: pick one from the list (for example Europe/London)")
+                    ch["general"] = {"timezone": tzn}
                 b = body.get("backups")
                 if isinstance(b, dict):
                     nb = {}

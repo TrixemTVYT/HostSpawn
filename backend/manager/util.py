@@ -15,7 +15,7 @@ ROOT = Path(os.environ.get("MANAGER_ROOT", Path(__file__).resolve().parents[2]))
 CONFIG = ROOT / "config"
 STATE = ROOT / "state"
 LOGS = ROOT / "logs"
-UK = ZoneInfo("Europe/London")
+UK = ZoneInfo("Europe/London")  # only for servers run by their own UK-time scripts (adapters/rust.py)
 SECRETS_FILE = CONFIG / "secrets.env"
 
 _known_secrets: set[str] = set()
@@ -215,6 +215,24 @@ def tail(path: Path, lines: int = 100) -> str:
         return ""
 
 
+def unique_path(path: Path) -> Path:
+    """path, or path with -2, -3... before the extension if it already exists: a backup never replaces another."""
+    path = Path(path)
+    if not path.exists():
+        return path
+    name, ext = path.name, ""
+    for e in (".tar.gz", ".sqlite", ".sql", ".pbo"):
+        if name.endswith(e):
+            name, ext = name[:-len(e)], e
+            break
+    else:
+        name, ext = path.stem, path.suffix
+    n = 2
+    while (path.parent / f"{name}-{n}{ext}").exists():
+        n += 1
+    return path.parent / f"{name}-{n}{ext}"
+
+
 def newest(pattern_dir: Path, glob: str) -> Path | None:
     files = sorted(pattern_dir.glob(glob), key=lambda p: p.stat().st_mtime, reverse=True)
     return files[0] if files else None
@@ -224,8 +242,52 @@ def now_utc() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
 
-def uk_now() -> datetime:
-    return datetime.now(UK)
+def system_timezone() -> str:
+    """This computer's time zone name (e.g. "Europe/London"), or "UTC"."""
+    for name in (os.environ.get("TZ", "").lstrip(":"),):
+        if name and valid_timezone(name):
+            return name
+    try:
+        name = Path("/etc/timezone").read_text().strip()
+        if valid_timezone(name):
+            return name
+    except OSError:
+        pass
+    try:
+        link = os.readlink("/etc/localtime")
+        name = link.split("zoneinfo/", 1)[1]
+        name = name[4:] if name.startswith("Etc/") and name[4:] == "UTC" else name
+        if valid_timezone(name):
+            return name
+    except (OSError, IndexError):
+        pass
+    return "UTC"
+
+
+def valid_timezone(name: str) -> bool:
+    try:
+        ZoneInfo(str(name))
+        return bool(name) and "/" in str(name) or str(name) == "UTC"
+    except (ValueError, KeyError, OSError, TypeError):
+        return False
+
+
+def timezone_name() -> str:
+    """The time zone for restarts, backups and wipes: settings.toml [general] timezone, else this computer's."""
+    name = (settings().get("general") or {}).get("timezone", "")
+    return name if valid_timezone(name) else system_timezone()
+
+
+def tz() -> ZoneInfo:
+    return ZoneInfo(timezone_name())
+
+
+def local_now() -> datetime:
+    """Now, in the time zone chosen in Settings (restarts, backups and wipes all use it)."""
+    return datetime.now(tz())
+
+
+uk_now = local_now  # the old name (it used to be UK time for everyone)
 
 
 def clean_command(text: str, limit: int = 300) -> str:

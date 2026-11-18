@@ -400,7 +400,7 @@ class InstallManager:
     def _safety_backup(self, a, job) -> Path | None:
         self._step(a, job, "Backing up settings and saves first")
         try:
-            a.backup()
+            a._backup()  # the install job already holds the instance lock
         except Exception as e:
             raise InstallError(f"The safety backup failed ({e}), so nothing was changed.")
         files = sorted(a.backup_files(), key=lambda p: p.stat().st_mtime)

@@ -551,33 +551,34 @@ class _ConfirmDelete extends StatefulWidget {
 }
 
 class _ConfirmDeleteState extends State<_ConfirmDelete> {
-  final c = TextEditingController();
   bool keep = true;
   @override
   Widget build(BuildContext context) => AlertDialog(
         backgroundColor: C.bg2,
-        title: Text('Delete ${widget.server}?'),
+        icon: const Icon(Icons.delete_forever_outlined, color: C.bad, size: 36),
+        title: const Text('Are you sure you want to delete everything?'),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('This stops the instance and deletes its files, world and settings. It can\'t be undone.',
-              style: TextStyle(color: C.muted)),
+          Text(
+              'This stops ${widget.server} and deletes its files, world and settings. You can always make a new '
+              'instance afterwards.',
+              style: const TextStyle(color: C.muted, height: 1.4)),
           const SizedBox(height: 10),
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             value: keep,
             onChanged: (v) => setState(() => keep = v ?? true),
             title: const Text('Keep its backups'),
+            subtitle: const Text('Saved in servers/_kept_backups, so you could bring it back later.',
+                style: TextStyle(color: C.dim, fontSize: 12)),
             controlAffinity: ListTileControlAffinity.leading,
           ),
-          Text('Type "${widget.server}" to confirm.', style: const TextStyle(color: C.muted)),
-          const SizedBox(height: 8),
-          TextField(controller: c, autofocus: true, onChanged: (_) => setState(() {})),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('No, keep it')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: C.bad),
-            onPressed: c.text.trim() == widget.server ? () => Navigator.pop(context, (c.text.trim(), keep)) : null,
-            child: const Text('Delete instance'),
+            onPressed: () => Navigator.pop(context, (widget.server, keep)), // the name goes to the engine's check
+            child: const Text('Yes, delete everything'),
           ),
         ],
       );

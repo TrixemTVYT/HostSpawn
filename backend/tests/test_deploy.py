@@ -61,7 +61,7 @@ class DeploySandbox(Sandbox):
         deploy.servers_dir = lambda: self.base
         self._orig_alloc = deploy.allocate_ports
         port = deploy_ports()
-        deploy.allocate_ports = lambda game, servers=None: (
+        deploy.allocate_ports = lambda game, servers=None, practice=False: (
             {"port": port, "rcon_port": port + 5, "query_port": port + 1} if game == "rust" else
             {"port": port} if game == "arma3" else {"port": port, "query_port": port + 1, "rcon_port": port + 5})
         self.steam_out = self.tmp / "steam_out"
@@ -556,6 +556,10 @@ class TestValidationAndSafety(DeploySandbox):
             s.bind(("0.0.0.0", 0))
             busy = s.getsockname()[1]
             self.assertFalse(deploy.port_free(busy))
+        practice = deploy.allocate_ports("rust", {}, practice=True)
+        self.assertGreaterEqual(practice["port"], 38015)  # never a real server's standard ports
+        self.assertGreaterEqual(deploy.allocate_ports("arma3", {}, practice=True)["port"], 12302)
+        self.assertGreaterEqual(deploy.allocate_ports("reforger", {}, practice=True)["port"], 12001)
         r = deploy.allocate_ports("rust", {"a": {"port": 28015}})
         self.assertGreaterEqual(r["port"], 28115)
         self.assertEqual((r["rcon_port"], r["query_port"]), (r["port"] + 1, r["port"] + 2))

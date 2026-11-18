@@ -301,7 +301,7 @@ class Supervisor:
         marker = a.flag("last_scheduled_restart")  # on disk: an agent restart won't run the same restart twice
         if a.status().get("state") == "running" and (not marker.exists() or marker.read_text() != key):
             marker.write_text(key)
-            add_event(sid, "info", f"scheduled restart (with update) at {at:%H:%M} UK"
+            add_event(sid, "info", f"scheduled restart (with update) at {at:%H:%M %Z}"
                       + (": countdown started" if left >= 60 else ""))
             threading.Thread(target=self._restart_with_update, args=(a, left), daemon=True).start()
 
@@ -351,7 +351,7 @@ class Supervisor:
         marker = a.flag("last_scheduled_wipe")
         if kind and (not marker.exists() or marker.read_text() != key) and a.status().get("state") in ("running", "stopped"):
             marker.write_text(key)
-            add_event(sid, "info", f"scheduled {kind} wipe at {at:%H:%M} UK: countdown started")
+            add_event(sid, "info", f"scheduled {kind} wipe at {at:%H:%M %Z}: countdown started")
             threading.Thread(target=self._run_wipe, args=(a, kind), daemon=True).start()
 
     @staticmethod

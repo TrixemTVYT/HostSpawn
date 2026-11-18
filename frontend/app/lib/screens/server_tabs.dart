@@ -58,6 +58,7 @@ class _SettingsTabState extends State<SettingsTab> {
   String? error;
 
   Map get _set => (widget.s['settings'] as Map?) ?? {};
+  String get zone => '${widget.s['timezone'] ?? 'server'}'; // the time zone chosen in account menu → Time zone
   Map? get _wipes => widget.s['wipes'] as Map?;
 
   Map<String, dynamic> _changes() {
@@ -211,7 +212,7 @@ class _SettingsTabState extends State<SettingsTab> {
               'restart.',
               style: TextStyle(color: C.muted, fontSize: 12)),
         ]),
-      _Section('Daily restarts (UK time)', [
+      _Section('Daily restarts ($zone time)', [
         Wrap(spacing: 8, runSpacing: 8, children: [
           for (final t in restarts)
             InputChip(label: Text(t), onDeleted: () => setState(() => restarts = [...restarts]..remove(t))),
@@ -307,7 +308,7 @@ class _SettingsTabState extends State<SettingsTab> {
           const SizedBox(height: 4),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Wipe time (UK)'),
+            title: Text('Wipe time ($zone)'),
             trailing: TextButton(
                 onPressed: () async {
                   final t = await pickTime(wipeTime);
@@ -403,7 +404,7 @@ class _MessageDialogState extends State<_MessageDialog> {
               if (times.length < 6)
                 ActionChip(
                   avatar: const Icon(Icons.add, size: 18),
-                  label: const Text('Add a time (UK)'),
+                  label: const Text('Add a time'),
                   onPressed: () async {
                     final t = await showTimePicker(
                       context: context,
